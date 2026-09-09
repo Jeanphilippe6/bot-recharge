@@ -1,6 +1,7 @@
 import os
 import logging
 import threading
+import html
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -12,12 +13,15 @@ from telegram.ext import (
     filters,
 )
 
-# Serviteur HTTP minimal pour satisfaire le Web Service de Render
 class DummyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Bot Telegram Actif")
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
@@ -35,6 +39,7 @@ GRILLES_TARIFS = {
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
     keyboard = [
         [
             InlineKeyboardButton("💳 PCS", callback_data="prod_PCS"),
@@ -57,9 +62,9 @@ async def gerer_choix_produit(update: Update, context: ContextTypes.DEFAULT_TYPE
     keyboard = [[InlineKeyboardButton(f"{eur}€ ➡️ {xof:,} XOF", callback_data=f"montant_{eur}_{xof}")] for eur, xof in tarifs.items()]
 
     await query.edit_message_text(
-        text=f"Vous avez choisi : **{produit}**\n\nChoisissez le montant de votre recharge :",
+        text=f"Vous avez choisi : <b>{html.escape(produit)}</b>\n\nChoisissez le montant de votre recharge :",
         reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
 
 async def gerer_choix_montant(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -76,12 +81,12 @@ async def gerer_choix_montant(update: Update, context: ContextTypes.DEFAULT_TYPE
     produit = context.user_data.get("produit")
 
     await query.edit_message_text(
-        text=f"📊 **Récapitulatif de la commande :**\n"
-             f"• Service : **{produit}**\n"
-             f"• Montant du coupon : **{montant_eur} €**\n"
-             f"• Vous recevrez : **{montant_xof:,} XOF**\n\n"
-             f"👉 Veuillez maintenant écrire et envoyer votre **code de recharge {produit}** dans ce chat :",
-        parse_mode="Markdown",
+        text=f"📊 <b>Récapitulatif de la commande :</b>\n"
+             f"• Service : <b>{html.escape(produit)}</b>\n"
+             f"• Montant du coupon : <b>{montant_eur} €</b>\n"
+             f"• Vous recevrez : <b>{montant_xof:,} XOF</b>\n\n"
+             f"👉 Veuillez maintenant écrire et envoyer votre <b>code de recharge {html.escape(produit)}</b> dans ce chat :",
+        parse_mode="HTML",
     )
 
 async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,8 +95,8 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if etape == "ATTENTE_CODE":
         client_id = update.effective_user.id
-        client_name = update.effective_user.full_name
-        username = update.effective_user.username or "Pas de username"
+        client_name = html.escape(update.effective_user.full_name)
+        username = html.escape(update.effective_user.username or "Pas de username")
         produit = context.user_data.get("produit")
         montant_eur = context.user_data.get("montant_eur")
         montant_xof = context.user_data.get("montant_xof")
@@ -108,22 +113,22 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         ]
 
         message_admin = (
-            f"📥 **NOUVELLE TRANSACTION**\n\n"
-            f"👤 **Client :** {client_name} (@{username})\n"
-            f"🆔 **ID Client :** `{client_id}`\n"
-            f"🏷 **Produit :** {produit}\n"
-            f"💶 **Montant Coupon :** {montant_eur} €\n"
-            f"💰 **Montant A Payer :** `{montant_xof:,} XOF`\n\n"
-            f"🔑 **Code(s) Soumis :**\n`{texte}`"
+            f"📥 <b>NOUVELLE TRANSACTION</b>\n\n"
+            f"👤 <b>Client :</b> {client_name} (@{username})\n"
+            f"🆔 <b>ID Client :</b> <code>{client_id}</code>\n"
+            f"🏷 <b>Produit :</b> {html.escape(produit)}\n"
+            f"💶 <b>Montant Coupon :</b> {montant_eur} €\n"
+            f"💰 <b>Montant A Payer :</b> <code>{montant_xof:,} XOF</code>\n\n"
+            f"🔑 <b>Code(s) Soumis :</b>\n<code>{html.escape(texte)}</code>"
         )
 
         await context.bot.send_message(
-            chat_id=ADMIN_CHAT_ID, text=message_admin, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard)
+            chat_id=ADMIN_CHAT_ID, text=message_admin, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
     elif etape == "ATTENTE_NUMERO":
         client_id = update.effective_user.id
-        client_name = update.effective_user.full_name
+        client_name = html.escape(update.effective_user.full_name)
         montant_xof = context.user_data.get("montant_xof")
 
         context.user_data["etape"] = None
@@ -134,13 +139,13 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
         await context.bot.send_message(
             chat_id=ADMIN_CHAT_ID,
-            text=f"📱 **NUMÉRO DE DÉPÔT REÇU**\n\n"
-                 f"👤 **Client :** {client_name}\n"
-                 f"🆔 **ID Client :** `{client_id}`\n"
-                 f"📞 **Numéro / Réseau :** `{texte}`\n"
-                 f"💵 **Montant à transférer :** `{montant_xof:,} XOF`",
+            text=f"📱 <b>NUMÉRO DE DÉPÔT REÇU</b>\n\n"
+                 f"👤 <b>Client :</b> {client_name}\n"
+                 f"🆔 <b>ID Client :</b> <code>{client_id}</code>\n"
+                 f"📞 <b>Numéro / Réseau :</b> <code>{html.escape(texte)}</code>\n"
+                 f"💵 <b>Montant à transférer :</b> <code>{montant_xof:,} XOF</code>",
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -151,26 +156,25 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
     action, client_id = data[0], int(data[1])
 
     if action == "valide":
-        await query.edit_message_text(text=f"{query.message.text}\n\n✅ **STATUT : CODE CHARGÉ AVEC SUCCÈS**")
+        await query.edit_message_text(text=f"{query.message.text}\n\n✅ STATUT : CODE CHARGÉ AVEC SUCCÈS")
         await context.bot.send_message(
             chat_id=client_id,
-            text="✅ **Votre code est valide et accepté !**\n\n"
-                 "Veuillez répondre en envoyant votre **Numéro de dépôt** (Wave, Orange, MTN, Moov, etc.) avec le nom du compte pour recevoir votre paiement :"
+            text="✅ Votre code est valide et accepté !\n\nVeuillez répondre en envoyant votre Numéro de dépôt (Wave, Orange, MTN, Moov, etc.) avec le nom du compte pour recevoir votre paiement :"
         )
         context.application.user_data[client_id]["etape"] = "ATTENTE_NUMERO"
 
     elif action == "invalide":
-        await query.edit_message_text(text=f"{query.message.text}\n\n❌ **STATUT : CODE REFUSÉ / INVALIDE**")
+        await query.edit_message_text(text=f"{query.message.text}\n\n❌ STATUT : CODE REFUSÉ / INVALIDE")
         await context.bot.send_message(
             chat_id=client_id,
-            text="❌ **Code invalide ou déjà utilisé.** Veuillez vérifier la recharge et relancer la procédure avec la commande /start."
+            text="❌ Code invalide ou déjà utilisé. Veuillez vérifier la recharge et relancer la procédure avec la commande /start."
         )
 
     elif action == "paye":
-        await query.edit_message_text(text=f"{query.message.text}\n\n💳 **STATUT : PAIEMENT EFFECTUÉ ET CONFIRMÉ**")
+        await query.edit_message_text(text=f"{query.message.text}\n\n💳 STATUT : PAIEMENT EFFECTUÉ ET CONFIRMÉ")
         await context.bot.send_message(
             chat_id=client_id,
-            text="🎉 **Paiement effectué avec succès !** Le transfert a été envoyé sur votre numéro. Merci pour votre confiance !"
+            text="🎉 Paiement effectué avec succès ! Le transfert a été envoyé sur votre numéro. Merci pour votre confiance !"
         )
 
 def main():
