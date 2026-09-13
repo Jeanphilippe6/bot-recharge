@@ -753,7 +753,146 @@ async def gerer_actions_admin(
 
   conn.close()
 
+import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
+# Configuration du logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+
+# Remplace par ton vrai Token BotFather
+TOKEN = "TON_TOKEN_BOTFATHER_ICI"
+
+# Dictionnaire des montants disponibles (en EUR)
+MONTANTS_DISPONIBLES = [10, 20, 50, 100, 250]
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Commande /start : Affiche la liste des montants disponibles."""
+    keyboard = [
+        [InlineKeyboardButton(f"{m} €", callback_data=f"select_montant:{m}")]
+        for m in MONTANTS_DISPONIBLES
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        "👋 **Bienvenue !**\n\nVeuillez choisir le montant de la recharge :",
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+
+
+async def montant_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gère le clic sur le bouton d'un montant."""
+    query = update.callback_query
+    await query.answer()
+
+    # Extraction du montant sélectionné
+    _, montant_str = query.data.split(":")
+    montant = int(montant_str)
+
+    # Sauvegarde du montant dans la session de l'utilisateur
+    context.user_data["montant_choisi"] = montant
+
+    await query.edit_message_text(
+        text=(
+            f"✅ **Montant sélectionné :** {montant} €\n\n"
+            "👉 **Étape suivante :** Répondez à ce message en tapant le **nombre de recharges** "
+            "souhaité (ex: `1`, `2`, `5`) :"
+        ),
+        parse_mode="Markdown"
+    )
+
+
+async def enregistrer_quantite(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Traite la saisie textuelle de la quantité par l'utilisateur."""
+    montant = context.user_data.get("montant_choisi")
+
+    # Si aucun montant n'a été choisi au préalable
+    if not montant:
+        await update.message.reply_text(
+            "⚠️ Veuillez d'abord choisir un montant en lançant la commande /start."
+        )
+        return
+
+    saisie = update.message.text.strip()
+
+    # Vérification que la saisie est bien un nombre entier valide
+    if not saisie.isdigit() or int(saisie) <= 0:
+        await update.message.reply_text(
+            "❌ Veuillez entrer un nombre entier positif valide (ex: 1, 2, 3)."
+        )
+        return
+
+    quantite = int(saisie)
+    total = montant * quantite
+
+    # Boutons d'action pour la suite (Payer ou Réinitialiser)
+    keyboard = [
+        [InlineKeyboardButton("💳 Valider et Payer", callback_data="payer")],
+        [InlineKeyboardButton("🔄 Recommencer", callback_data="reset")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # Récapitulatif clair de la commande
+    await update.message.reply_text(
+        text=(
+            "📋 **RÉCAPITULATIF DE LA COMMANDE**\n\n"
+            f"🔹 **Montant unitaire :** {montant} €\n"
+            f"🔢 **Quantité :** {quantite}\n"
+            f"💰 **Total à payer :** **{total} €**\n\n"
+            "Cliquez sur le bouton ci-dessous pour procéder au règlement."
+        ),
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+
+
+async def actions_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Gère les clics sur 'Payer' ou 'Recommencer'."""
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "payer":
+        await query.edit_message_text(
+            "🎉 **Commande validée !** Merci pour votre achat.\n"
+            "(Ici, vous pouvez intégrer votre lien de paiement Stripe/PayPal/etc.)",
+            parse_mode="Markdown"
+        )
+        # Réinitialisation des données temporaires
+        context.user_data.clear()
+
+    elif query.data == "reset":
+        context.user_data.clear()
+        await query.edit_message_text("🔄 Opération annulée. Tapez /start pour recommencer.")
+
+
+def main():
+    """Initialisation et lancement du Bot."""
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    # Handlers (Gestionnaires d'événements)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(montant_callback, pattern="^select_montant:"))
+    app.add_handler(CallbackQueryHandler(actions_callback, pattern="^(payer|reset)$"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, enregistrer_quantite))
+
+    print("🤖 Le bot est en cours d'exécution...")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
 # ---------------------------------------------------------
 # COMMANDES LIQUIDITÉ ADMIN
 # ---------------------------------------------------------
@@ -779,7 +918,46 @@ async def admin_set_liquidite(
         "Usage: `/liquidite 50000000`", parse_mode="Markdown"
     )
 
+<!-- Formulaire mis à jour avec le champ Quantité -->
+<form id="rechargeForm">
+  <!-- Sélection du montant unitaires -->
+  <label for="montant">Montant de la recharge :</label>
+  <select id="montant" name="montant">
+    <option value="10">10 €</option>
+    <option value="20">20 €</option>
+    <option value="50">50 €</option>
+    <option value="100">100 €</option>
+    <option value="250">250 €</option>
+  </select>
 
+  <!-- Sélection de la quantité -->
+  <label for="quantite">Nombre de recharges :</label>
+  <input type="number" id="quantite" name="quantite" value="1" min="1" max="10">
+
+  <!-- Affichage du total -->
+  <p>Total à payer : <strong id="totalAffichage">10</strong> €</p>
+
+  <button type="submit">Valider la commande</button>
+</form>
+
+<script>
+  const selectMontant = document.getElementById('montant');
+  const inputQuantite = document.getElementById('quantite');
+  const totalAffichage = document.getElementById('totalAffichage');
+
+  // Fonction pour calculer le montant total
+  function calculerTotal() {
+    const montantUnit = parseFloat(selectMontant.value) || 0;
+    const quantite = parseInt(inputQuantite.value) || 1;
+    const total = montantUnit * quantite;
+    
+    totalAffichage.textContent = total;
+  }
+
+  // Recalculer automatiquement à chaque changement
+  selectMontant.addEventListener('change', calculerTotal);
+  inputQuantite.addEventListener('input', calculerTotal);
+</script>
 # ---------------------------------------------------------
 # MAIN
 # ---------------------------------------------------------
