@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import html
 import logging
 import os
+import re
 import sqlite3
 import threading
 
@@ -105,6 +106,7 @@ TEXTS = {
         "tx_title": "📜 **HISTORIQUE COMPLET DE VOS TRANSACTIONS :**\n\n",
         "ask_qty": "🔢 Combien de recharges **{produit}** de **{eur}€** avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2, 5...)_",
         "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** ci-dessous (un par ligne ou séparés par des espaces) :",
+        "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous en précisant le montant pour chacun.\n\n**Exemple de format :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>",
         "code_received": "⏳ Code(s) reçu(s) ! Vérification en cours...",
         "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée avec succès !",
         "code_refused": "❌ **Code invalide ou déjà utilisé.** Veuillez réessayer.",
@@ -132,6 +134,7 @@ TEXTS = {
         "tx_title": "📜 **FULL TRANSACTION HISTORY:**\n\n",
         "ask_qty": "🔢 How many **{produit}** top-up cards of **{eur}€** do you have?\n\n_Please enter a number (e.g., 1, 2, 5...)_",
         "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** below:",
+        "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below, specifying the amount for each card.\n\n**Example format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>",
         "code_received": "⏳ Code(s) received! Verification in progress...",
         "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated!",
         "code_refused": "❌ **Invalid code or already used.** Please try again.",
@@ -332,19 +335,27 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tarifs = GRILLES_TARIFS.get(produit, {})
 
         keyboard = [[InlineKeyboardButton(f"{eur}€ ➡️ {xof:,} XOF", callback_data=f"montant_{eur}_{xof}")] for eur, xof in tarifs.items()]
+        # Bouton pour montants multiples / coupons différents
+        keyboard.append([InlineKeyboardButton("🔀 Montants multiples / Différents", callback_data="montant_mixte")])
         keyboard.append([InlineKeyboardButton(t["back"], callback_data="menu_main")])
 
         await query.edit_message_text(
-            f"Service : <b>{html.escape(produit)}</b>",
+            f"Service : <b>{html.escape(produit)}</b>\n_Sélectionnez un montant fixe ou choisissez 'Montants multiples' si vous avez plusieurs coupons différents._",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
+
+    elif data == "montant_mixte":
+        context.user_data["is_mixte"] = True
+        context.user_data["etape"] = "ATTENTE_CODE_MIXTE"
+        await query.edit_message_text(t["ask_mixed_codes"], parse_mode="HTML")
 
     elif data.startswith("montant_"):
         parts = data.split("_")
         montant_eur = int(parts[1])
         montant_crypto_unitaire = int(parts[2])
 
+        context.user_data["is_mixte"] = False
         context.user_data["montant_eur"] = montant_eur
         context.user_data["montant_crypto_unitaire"] = montant_crypto_unitaire
         context.user_data["etape"] = "ATTENTE_QUANTITE"
@@ -432,22 +443,30 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode="Markdown"
         )
 
-    elif etape == "ATTENTE_CODE":
+    elif etape in ["ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
         produit = context.user_data.get("produit")
-        montant_eur = context.user_data.get("montant_eur")
-        montant_crypto = context.user_data.get("montant_crypto")
-        quantite = context.user_data.get("quantite", 1)
-        
-        # Récupération de la transaction d'origine si c'est un complément
         tx_id_origine = context.user_data.get("tx_id_completer")
-        context.user_data["etape"] = None
         now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
+        if etape == "ATTENTE_CODE_MIXTE":
+            # Extraire dynamiquement les montants en EUR spécifiés par le client (ex: "100€", "50 euros", etc.)
+            valeurs_trouvees = [int(v) for v in re.findall(r'(\d+)\s*(?:€|eur|euros)', texte, re.IGNORECASE)]
+            montant_eur = sum(valeurs_trouvees) if valeurs_trouvees else 0
+            
+            # Calcul du montant XOF équivalent selon la grille tarifaire
+            grille = GRILLES_TARIFS.get(produit, {})
+            montant_crypto = sum(grille.get(val, val * 500) for val in valeurs_trouvees) if valeurs_trouvees else 0
+            quantite = len(valeurs_trouvees) if valeurs_trouvees else 1
+        else:
+            montant_eur = context.user_data.get("montant_eur", 0)
+            montant_crypto = context.user_data.get("montant_crypto", 0)
+            quantite = context.user_data.get("quantite", 1)
+
+        context.user_data["etape"] = None
         conn = get_db()
         cursor = conn.cursor()
 
         if tx_id_origine:
-            # Mise à jour du code dans la transaction existante
             cursor.execute("SELECT code FROM transactions WHERE id = ?", (tx_id_origine,))
             ancien_code = cursor.fetchone()[0]
             nouveau_code = f"{ancien_code}\n--- COMPLÉMENT DU {now_str} ---\n{texte}"
@@ -456,10 +475,9 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             tx_id = tx_id_origine
             context.user_data["tx_id_completer"] = None
         else:
-            # Nouvelle transaction
             cursor.execute(
                 "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (user.id, f"{produit} (x{quantite})", "XOF", montant_eur, montant_crypto, texte, "En attente", now_str)
+                (user.id, f"{produit} (Multiples x{quantite})" if etape == "ATTENTE_CODE_MIXTE" else f"{produit} (x{quantite})", "XOF", montant_eur, montant_crypto, texte, "En attente", now_str)
             )
             tx_id = cursor.lastrowid
 
@@ -468,7 +486,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
         await update.message.reply_text(t["code_received"])
 
-        # BOUTONS ADMINS : Validation, Rejet, Demande de complément, Ecrire au client
+        # BOUTONS ADMINS
         keyboard = [
             [
                 InlineKeyboardButton("✅ Valider Code", callback_data=f"admin_valide_{tx_id}"),
@@ -486,8 +504,8 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             f"🌐 <b>Langue client :</b> {lang.upper()}\n"
             f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
             f"🏷 <b>Produit :</b> {html.escape(produit or 'PCS')} (x{quantite})\n"
-            f"💶 <b>Montant Total Coupon :</b> {montant_eur} €\n"
-            f"💰 <b>À Payer :</b> <code>{montant_crypto:,} XOF</code>\n\n"
+            f"💶 <b>Montant Total Estimé :</b> {montant_eur} €\n"
+            f"💰 <b>À Payer Estimé :</b> <code>{montant_crypto:,} XOF</code>\n\n"
             f"🔑 <b>Code(s) Soumis :</b>\n<code>{html.escape(texte)}</code>"
         )
 
@@ -603,7 +621,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             client_id, produit = tx[0], tx[1]
             client_lang = get_user_lang(client_id)
 
-            # Passer le client en état d'attente de complément
             context.application.user_data[client_id]["etape"] = "ATTENTE_CODE"
             context.application.user_data[client_id]["tx_id_completer"] = tx_id
             context.application.user_data[client_id]["produit"] = produit
