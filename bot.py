@@ -116,10 +116,16 @@ TEXTS = {
         "liquidite_disp": "💧 **Liquidité globale disponible :** {liq:,} XOF",
         "no_tx": "📜 Vous n'avez encore effectué aucune transaction.",
         "tx_title": "📜 **HISTORIQUE COMPLET DE VOS TRANSACTIONS :**\n\n",
-        "ask_code": (
-            "👉 Veuillez envoyer votre **code de recharge {produit}** ci-dessous :"
+        "ask_qty": (
+            "🔢 Combien de recharges **{produit}** de **{eur}€**"
+            " avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2,"
+            " 5...)_"
         ),
-        "code_received": "⏳ Code reçu ! Vérification en cours...",
+        "ask_code": (
+            "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}**"
+            " ci-dessous (un par ligne ou séparés par des espaces) :"
+        ),
+        "code_received": "⏳ Code(s) reçu(s) ! Vérification en cours...",
         "success_recharge": (
             "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée"
             " avec succès !"
@@ -149,6 +155,7 @@ TEXTS = {
             " transaction de {montant:,} XOF. Veuillez réessayer plus tard ou"
             " choisir un montant inférieur."
         ),
+        "qty_invalid": "❌ **Saisie invalide.** Veuillez taper un nombre entier.",
         "back": "🔙 Retour",
     },
     "en": {
@@ -166,8 +173,14 @@ TEXTS = {
         "liquidite_disp": "💧 **Available Global Liquidity:** {liq:,} XOF",
         "no_tx": "📜 You haven't made any transactions yet.",
         "tx_title": "📜 **FULL TRANSACTION HISTORY:**\n\n",
-        "ask_code": "👉 Please send your **{produit} top-up code** below:",
-        "code_received": "⏳ Code received! Verification in progress...",
+        "ask_qty": (
+            "🔢 How many **{produit}** top-up cards of **{eur}€** do you"
+            " have?\n\n_Please enter a number (e.g., 1, 2, 5...)_"
+        ),
+        "ask_code": (
+            "👉 Please send your **{qty} {produit} top-up code(s)** below:"
+        ),
+        "code_received": "⏳ Code(s) received! Verification in progress...",
         "success_recharge": (
             "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been"
             " successfully validated!"
@@ -195,6 +208,7 @@ TEXTS = {
             " transaction of {montant:,} XOF. Please try again later or select"
             " a smaller amount."
         ),
+        "qty_invalid": "❌ **Invalid input.** Please type a valid number.",
         "back": "🔙 Back",
     },
 }
@@ -452,30 +466,17 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
   elif data.startswith("montant_"):
     parts = data.split("_")
     montant_eur = int(parts[1])
-    montant_crypto = int(parts[2])
+    montant_crypto_unitaire = int(parts[2])
 
-    # VERIFICATION DE LA LIQUIDITÉ DISPONIBLE
-    cursor.execute("SELECT value FROM settings WHERE key='liquidite'")
-    liquidite = int(cursor.fetchone()[0])
+    context.user_data["montant_eur"] = montant_eur
+    context.user_data["montant_crypto_unitaire"] = montant_crypto_unitaire
+    context.user_data["etape"] = "ATTENTE_QUANTITE"
 
-    if liquidite <= 0 or montant_crypto > liquidite:
-      keyboard = [[InlineKeyboardButton(t["back"], callback_data="menu_main")]]
-      await query.edit_message_text(
-          t["liquidite_insuffisante"].format(
-              liq=liquidite, montant=montant_crypto
-          ),
-          reply_markup=InlineKeyboardMarkup(keyboard),
-          parse_mode="Markdown",
-      )
-    else:
-      context.user_data["montant_eur"] = montant_eur
-      context.user_data["montant_crypto"] = montant_crypto
-      context.user_data["etape"] = "ATTENTE_CODE"
-
-      produit = context.user_data.get("produit")
-      await query.edit_message_text(
-          t["ask_code"].format(produit=produit), parse_mode="Markdown"
-      )
+    produit = context.user_data.get("produit")
+    await query.edit_message_text(
+        t["ask_qty"].format(produit=produit, eur=montant_eur),
+        parse_mode="Markdown",
+    )
 
   elif data.startswith("rate_"):
     parts = data.split("_")
@@ -506,10 +507,53 @@ async def gerer_messages_texte(
   lang = get_user_lang(user.id)
   t = TEXTS[lang]
 
-  if etape == "ATTENTE_CODE":
+  if etape == "ATTENTE_QUANTITE":
+    if not texte.isdigit() or int(texte) <= 0:
+      await update.message.reply_text(t["qty_invalid"])
+      return
+
+    quantite = int(texte)
+    montant_eur_unitaire = context.user_data.get("montant_eur")
+    montant_crypto_unitaire = context.user_data.get("montant_crypto_unitaire")
+
+    montant_eur_total = montant_eur_unitaire * quantite
+    montant_crypto_total = montant_crypto_unitaire * quantite
+
+    # VERIFICATION DE LA LIQUIDITÉ DISPONIBLE POUR LE TOTAL
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM settings WHERE key='liquidite'")
+    liquidite = int(cursor.fetchone()[0])
+    conn.close()
+
+    if liquidite <= 0 or montant_crypto_total > liquidite:
+      keyboard = [[InlineKeyboardButton(t["back"], callback_data="menu_main")]]
+      await update.message.reply_text(
+          t["liquidite_insuffisante"].format(
+              liq=liquidite, montant=montant_crypto_total
+          ),
+          reply_markup=InlineKeyboardMarkup(keyboard),
+          parse_mode="Markdown",
+      )
+      context.user_data["etape"] = None
+      return
+
+    context.user_data["quantite"] = quantite
+    context.user_data["montant_eur"] = montant_eur_total
+    context.user_data["montant_crypto"] = montant_crypto_total
+    context.user_data["etape"] = "ATTENTE_CODE"
+
+    produit = context.user_data.get("produit")
+    await update.message.reply_text(
+        t["ask_code"].format(qty=quantite, produit=produit),
+        parse_mode="Markdown",
+    )
+
+  elif etape == "ATTENTE_CODE":
     produit = context.user_data.get("produit")
     montant_eur = context.user_data.get("montant_eur")
     montant_crypto = context.user_data.get("montant_crypto")
+    quantite = context.user_data.get("quantite", 1)
     context.user_data["etape"] = None
 
     now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -522,7 +566,7 @@ async def gerer_messages_texte(
         " ?, ?, ?)",
         (
             user.id,
-            produit,
+            f"{produit} (x{quantite})",
             "XOF",
             montant_eur,
             montant_crypto,
@@ -552,10 +596,10 @@ async def gerer_messages_texte(
         f" (@{html.escape(user.username or 'aucun')})\n"
         f"🌐 <b>Langue client :</b> {lang.upper()}\n"
         f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
-        f"🏷 <b>Produit :</b> {html.escape(produit)}\n"
-        f"💶 <b>Montant Coupon :</b> {montant_eur} €\n"
+        f"🏷 <b>Produit :</b> {html.escape(produit)} (x{quantite})\n"
+        f"💶 <b>Montant Total Coupon :</b> {montant_eur} €\n"
         f"💰 <b>À Payer :</b> <code>{montant_crypto:,} XOF</code>\n\n"
-        f"🔑 <b>Code Soumis :</b>\n<code>{html.escape(texte)}</code>"
+        f"🔑 <b>Code(s) Soumis :</b>\n<code>{html.escape(texte)}</code>"
     )
 
     await context.bot.send_message(
