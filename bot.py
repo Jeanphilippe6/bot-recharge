@@ -89,6 +89,7 @@ ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", 0))
 
 BONUS_PARRAINAGE = 125
 SEUIL_MIN_RETRAIT = 2000
+TIMEOUT_SESSION = 600  # 10 minutes en secondes
 
 TEXTS = {
     "fr": {
@@ -104,19 +105,20 @@ TEXTS = {
         "liquidite_disp": "💧 **Liquidité globale disponible :** {liq:,} XOF",
         "no_tx": "📜 Vous n'avez encore effectué aucune transaction.",
         "tx_title": "📜 **HISTORIQUE COMPLET DE VOS TRANSACTIONS :**\n\n",
-        "ask_qty": "🔢 Combien de recharges **{produit}** de **{eur}€** avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2, 5...)_",
-        "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** ci-dessous (un par ligne ou séparés par des espaces) :",
-        "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous en précisant le montant pour chacun.\n\n**Exemple de format :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>",
+        "ask_qty": "🔢 Combien de recharges **{produit}** de **{eur}€** avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2, 5...)_\n⏱ _Vous avez 10 minutes pour finaliser._",
+        "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** ci-dessous (un par ligne ou séparés par des espaces) :\n⏱ _Vous avez 10 minutes pour envoyer le(s) code(s)._",
+        "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous en précisant le montant pour chacun.\n⏱ _Vous avez 10 minutes pour envoyer les codes._\n\n**Exemple de format :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>",
         "code_received": "⏳ Code(s) reçu(s) ! Vérification en cours...",
         "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée avec succès !",
         "code_refused": "❌ **Code invalide ou déjà utilisé.** Veuillez réessayer.",
-        "completer_demande": "⚠️ **RECHARGE INCOMPLÈTE !** ⚠️\n\nL'administrateur signale qu'il manque un ou plusieurs codes pour votre recharge **{produit}**.\n\n👉 Veuillez répondre ci-dessous en envoyant les codes manquants :",
+        "completer_demande": "⚠️ **RECHARGE INCOMPLÈTE !** ⚠️\n\nL'administrateur signale qu'il manque un ou plusieurs codes pour votre recharge **{produit}**.\n⏱ _Vous avez 10 minutes pour envoyer le complément._\n\n👉 Veuillez répondre ci-dessous en offrant les codes manquants :",
         "retrait_insuffisant": "❌ **Solde insuffisant.** Le montant minimum pour effectuer un retrait est de {min_retrait:,} XOF.",
         "retrait_demande": "💸 **DEMANDE DE RETRAIT** ({solde:,} XOF)\n\nVeuillez envoyer votre numéro de dépôt (Wave, Orange, MTN, Moov) :",
         "rate_prompt": "⭐ **ÉVALUATION DE LA TRANSACTION** ⭐\nComment évaluez-vous ce service ? Notez sur 7 étoiles :",
         "thanks_rate": "🙏 **Merci pour votre note de {stars}/7 !** Votre avis nous aide à nous améliorer.",
         "liquidite_insuffisante": "⚠️ **TRANSACTION IMPOSSIBLE** ⚠️\n\nLa liquidité disponible actuellement ({liq:,} XOF) est insuffisante pour traiter cette transaction de {montant:,} XOF. Veuillez réessayer plus tard ou choisir un montant inférieur.",
         "qty_invalid": "❌ **Saisie invalide.** Veuillez taper un nombre entier.",
+        "session_expired": "⏱ **SESSION EXPIRÉE !** ⚠️\n\nVous avez dépassé le délai de 10 minutes pour envoyer votre code. La session a été fermée.\n\nVeuillez relancer une nouvelle demande dans le menu.",
         "back": "🔙 Retour"
     },
     "en": {
@@ -132,19 +134,20 @@ TEXTS = {
         "liquidite_disp": "💧 **Available Global Liquidity:** {liq:,} XOF",
         "no_tx": "📜 You haven't made any transactions yet.",
         "tx_title": "📜 **FULL TRANSACTION HISTORY:**\n\n",
-        "ask_qty": "🔢 How many **{produit}** top-up cards of **{eur}€** do you have?\n\n_Please enter a number (e.g., 1, 2, 5...)_",
-        "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** below:",
-        "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below, specifying the amount for each card.\n\n**Example format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>",
+        "ask_qty": "🔢 How many **{produit}** top-up cards of **{eur}€** do you have?\n\n_Please enter a number (e.g., 1, 2, 5...)_\n⏱ _You have 10 minutes to complete._",
+        "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** below:\n⏱ _You have 10 minutes to send the code(s)._",
+        "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below, specifying the amount for each card.\n⏱ _You have 10 minutes to send the codes._\n\n**Example format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>",
         "code_received": "⏳ Code(s) received! Verification in progress...",
         "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated!",
         "code_refused": "❌ **Invalid code or already used.** Please try again.",
-        "completer_demande": "⚠️ **INCOMPLETE TOP-UP!** ⚠️\n\nThe administrator reported missing code(s) for your **{produit}** recharge.\n\n👉 Please reply below with the missing code(s):",
+        "completer_demande": "⚠️ **INCOMPLETE TOP-UP!** ⚠️\n\nThe administrator reported missing code(s) for your **{produit}** recharge.\n⏱ _You have 10 minutes to reply._\n\n👉 Please reply below with the missing code(s):",
         "retrait_insuffisant": "❌ **Insufficient balance.** The minimum withdrawal amount is {min_retrait:,} XOF.",
         "retrait_demande": "💸 **WITHDRAWAL REQUEST** ({solde:,} XOF)\n\nPlease send your payment account details:",
         "rate_prompt": "⭐ **TRANSACTION RATING** ⭐\nHow would you rate our service? Please give a rating out of 7 stars:",
         "thanks_rate": "🙏 **Thank you for your {stars}/7 rating!** Your feedback is appreciated.",
         "liquidite_insuffisante": "⚠️ **TRANSACTION NOT POSSIBLE** ⚠️\n\nThe current available liquidity ({liq:,} XOF) is insufficient to process this transaction of {montant:,} XOF. Please try again later or select a smaller amount.",
         "qty_invalid": "❌ **Invalid input.** Please type a valid number.",
+        "session_expired": "⏱ **SESSION EXPIRED!** ⚠️\n\n10 minutes have passed without receiving a code. Your session has been closed.\n\nPlease start a new request from the main menu.",
         "back": "🔙 Back"
     }
 }
@@ -196,10 +199,50 @@ def rating_keyboard(tx_id):
     return InlineKeyboardMarkup(keyboard)
 
 # ---------------------------------------------------------
+# GESTION DES EXPIRATIONS DE SESSION (10 MINUTES)
+# ---------------------------------------------------------
+def annuler_timer_utilisateur(context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Annule le temporisateur d'un utilisateur s'il existe."""
+    jobs = context.job_queue.get_jobs_by_name(f"timer_{user_id}")
+    for job in jobs:
+        job.schedule_removal()
+
+async def callback_expiration_session(context: ContextTypes.DEFAULT_TYPE):
+    """Fonction exécutée lorsque les 10 minutes sont écoulées."""
+    job = context.job
+    user_id = job.user_id
+    
+    user_data = context.application.user_data.get(user_id, {})
+    if user_data.get("etape") in ["ATTENTE_QUANTITE", "ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
+        # Réinitialisation de la session
+        user_data["etape"] = None
+        user_data["tx_id_completer"] = None
+        
+        lang = get_user_lang(user_id)
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=TEXTS[lang]["session_expired"],
+            reply_markup=client_keyboard(lang)
+        )
+
+def démarrer_timer_expiration(context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Programme une expiration au bout de 10 minutes."""
+    annuler_timer_utilisateur(context, user_id)
+    context.job_queue.run_once(
+        callback_expiration_session,
+        when=TIMEOUT_SESSION,
+        user_id=user_id,
+        name=f"timer_{user_id}"
+    )
+
+# ---------------------------------------------------------
 # COMMANDES CLIENT & ADMIN
 # ---------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    annuler_timer_utilisateur(context, user.id)
+    context.user_data["etape"] = None
+
     conn = get_db()
     cursor = conn.cursor()
 
@@ -253,6 +296,8 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor = conn.cursor()
 
     if data == "menu_main":
+        annuler_timer_utilisateur(context, user.id)
+        context.user_data["etape"] = None
         await query.edit_message_text("Menu :", reply_markup=client_keyboard(lang))
 
     elif data == "menu_lang":
@@ -335,7 +380,6 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tarifs = GRILLES_TARIFS.get(produit, {})
 
         keyboard = [[InlineKeyboardButton(f"{eur}€ ➡️ {xof:,} XOF", callback_data=f"montant_{eur}_{xof}")] for eur, xof in tarifs.items()]
-        # Bouton pour montants multiples / coupons différents
         keyboard.append([InlineKeyboardButton("🔀 Montants multiples / Différents", callback_data="montant_mixte")])
         keyboard.append([InlineKeyboardButton(t["back"], callback_data="menu_main")])
 
@@ -348,6 +392,10 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "montant_mixte":
         context.user_data["is_mixte"] = True
         context.user_data["etape"] = "ATTENTE_CODE_MIXTE"
+        
+        # Démarrage du chronomètre de 10 minutes
+        démarrer_timer_expiration(context, user.id)
+        
         await query.edit_message_text(t["ask_mixed_codes"], parse_mode="HTML")
 
     elif data.startswith("montant_"):
@@ -359,6 +407,9 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["montant_eur"] = montant_eur
         context.user_data["montant_crypto_unitaire"] = montant_crypto_unitaire
         context.user_data["etape"] = "ATTENTE_QUANTITE"
+
+        # Démarrage du chronomètre de 10 minutes
+        démarrer_timer_expiration(context, user.id)
 
         produit = context.user_data.get("produit")
         await query.edit_message_text(
@@ -423,6 +474,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         conn.close()
 
         if liquidite <= 0 or montant_crypto_total > liquidite:
+            annuler_timer_utilisateur(context, user.id)
             keyboard = [[InlineKeyboardButton(t["back"], callback_data="menu_main")]]
             await update.message.reply_text(
                 t["liquidite_insuffisante"].format(liq=liquidite, montant=montant_crypto_total),
@@ -444,16 +496,17 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
     elif etape in ["ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
+        # Code reçu à temps -> Annulation du temporisateur de 10 minutes
+        annuler_timer_utilisateur(context, user.id)
+
         produit = context.user_data.get("produit")
         tx_id_origine = context.user_data.get("tx_id_completer")
         now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
         if etape == "ATTENTE_CODE_MIXTE":
-            # Extraire dynamiquement les montants en EUR spécifiés par le client (ex: "100€", "50 euros", etc.)
             valeurs_trouvees = [int(v) for v in re.findall(r'(\d+)\s*(?:€|eur|euros)', texte, re.IGNORECASE)]
             montant_eur = sum(valeurs_trouvees) if valeurs_trouvees else 0
             
-            # Calcul du montant XOF équivalent selon la grille tarifaire
             grille = GRILLES_TARIFS.get(produit, {})
             montant_crypto = sum(grille.get(val, val * 500) for val in valeurs_trouvees) if valeurs_trouvees else 0
             quantite = len(valeurs_trouvees) if valeurs_trouvees else 1
@@ -624,6 +677,9 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             context.application.user_data[client_id]["etape"] = "ATTENTE_CODE"
             context.application.user_data[client_id]["tx_id_completer"] = tx_id
             context.application.user_data[client_id]["produit"] = produit
+
+            # Relancer également un temporisateur de 10 minutes pour la demande de complément
+            démarrer_timer_expiration(context, client_id)
 
             await query.edit_message_text(f"{query.message.text}\n\n⚠️ **DEMANDE DE COMPLÉMENT ENVOYÉE AU CLIENT**")
             await context.bot.send_message(
