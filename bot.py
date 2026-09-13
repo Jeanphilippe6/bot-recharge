@@ -107,12 +107,12 @@ TEXTS = {
         "no_tx": "📜 Vous n'avez encore effectué aucune transaction.",
         "tx_title": "📜 **HISTORIQUE COMPLET DE VOS TRANSACTIONS :**\n\n",
         "ask_qty": "🔢 Combien de recharges **{produit}** de **{eur}€** avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2, 5...)_\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
-        "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** ci-dessous :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
-        "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous en précisant le montant pour chacun.\n\n**Exemple de format :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
-        "code_received": "⏳ Code(s) reçu(s) ! Vérification en cours...",
+        "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** (sous forme de texte ou de photo) ci-dessous :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
+        "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous (texte ou photo) en précisant le montant.\n\n**Exemple de format texte :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
+        "code_received": "⏳ Code/Photo reçu(e) ! Vérification en cours...",
         "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée avec succès !",
         "code_refused": "❌ **Code invalide ou déjà utilisé.** Veuillez réessayer.",
-        "completer_demande": "⚠️ **RECHARGE INCOMPLÈTE !** ⚠️\n\nL'administrateur signale qu'il manque un ou plusieurs codes pour votre recharge **{produit}**.\n\n👉 Veuillez répondre ci-dessous en envoyant les codes manquants :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
+        "completer_demande": "⚠️ **RECHARGE INCOMPLÈTE !** ⚠️\n\nL'administrateur signale qu'il manque un ou plusieurs codes pour votre recharge **{produit}**.\n\n👉 Veuillez répondre ci-dessous en envoyant les codes ou photos manquants :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "retrait_insuffisant": "❌ **Solde insuffisant.** Le montant minimum pour effectuer un retrait est de {min_retrait:,} XOF.",
         "retrait_demande": "💸 **DEMANDE DE RETRAIT** ({solde:,} XOF)\n\nVeuillez envoyer votre numéro de dépôt (Wave, Orange, MTN, Moov) :",
         "rate_prompt": "⭐ **ÉVALUATION DE LA TRANSACTION** ⭐\nComment évaluez-vous ce service ? Notez sur 7 étoiles :",
@@ -136,12 +136,12 @@ TEXTS = {
         "no_tx": "📜 You haven't made any transactions yet.",
         "tx_title": "📜 **FULL TRANSACTION HISTORY:**\n\n",
         "ask_qty": "🔢 How many **{produit}** top-up cards of **{eur}€** do you have?\n\n_Please enter a number (e.g., 1, 2, 5...)_\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
-        "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** below:\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
-        "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below, specifying the amount for each card.\n\n**Example format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
-        "code_received": "⏳ Code(s) received! Verification in progress...",
+        "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** (text or photo) below:\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
+        "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below (text or photo), specifying the amount.\n\n**Example text format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
+        "code_received": "⏳ Code/Photo received! Verification in progress...",
         "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated!",
         "code_refused": "❌ **Invalid code or already used.** Please try again.",
-        "completer_demande": "⚠️ **INCOMPLETE TOP-UP!** ⚠️\n\nThe administrator reported missing code(s) for your **{produit}** recharge.\n\n👉 Please reply below with the missing code(s):\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
+        "completer_demande": "⚠️ **INCOMPLETE TOP-UP!** ⚠️\n\nThe administrator reported missing code(s) for your **{produit}** recharge.\n\n👉 Please reply below with the missing code(s) or photo(s):\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "retrait_insuffisant": "❌ **Insufficient balance.** The minimum withdrawal amount is {min_retrait:,} XOF.",
         "retrait_demande": "💸 **WITHDRAWAL REQUEST** ({solde:,} XOF)\n\nPlease send your payment account details:",
         "rate_prompt": "⭐ **TRANSACTION RATING** ⭐\nHow would you rate our service? Please give a rating out of 7 stars:",
@@ -203,14 +203,12 @@ def rating_keyboard(tx_id):
 # FONCTION DU COMPTE À REBOURS EN DIRECT
 # ---------------------------------------------------------
 async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int, text_template: str, kwargs: dict):
-    # Annuler tout timer précédent s'il existe
     if "timer_task" in context.user_data and context.user_data["timer_task"]:
         context.user_data["timer_task"].cancel()
 
     async def _timer():
         time_left = TIMEOUT_SESSION
         while time_left > 0:
-            # Si l'utilisateur a fini l'étape entre-temps, on stoppe le chrono
             if context.user_data.get("etape") is None:
                 break
 
@@ -225,13 +223,11 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
                     parse_mode="Markdown" if "<code>" not in text_mis_a_jour else "HTML"
                 )
             except Exception:
-                pass  # Ignore si le message est identique ou si l'utilisateur l'a effacé
+                pass
 
-            # Mise à jour toutes les 2 secondes pour éviter d'être bloqué par Telegram
             await asyncio.sleep(2)
             time_left -= 2
 
-        # Quand le temps expire
         if time_left <= 0 and context.user_data.get("etape") is not None:
             context.user_data["etape"] = None
             lang = get_user_lang(chat_id)
@@ -244,7 +240,6 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
             except Exception:
                 pass
 
-    # Lancement de la tâche en arrière-plan
     context.user_data["timer_task"] = asyncio.create_task(_timer())
 
 # ---------------------------------------------------------
@@ -295,7 +290,7 @@ async def admin_set_liquidite(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("Usage: `/liquidite 50000000`", parse_mode="Markdown")
 
 # ---------------------------------------------------------
-# CALLBACKS CLIENT
+# CALLBACKS CLIENT & ADMIN
 # ---------------------------------------------------------
 async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -407,7 +402,6 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["is_mixte"] = True
         context.user_data["etape"] = "ATTENTE_CODE_MIXTE"
         
-        # Démarrage du décompte visuel en direct
         await demarrer_compte_a_rebours(
             context, query.message.chat_id, query.message.message_id,
             t["ask_mixed_codes"], {}
@@ -425,7 +419,6 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         produit = context.user_data.get("produit")
 
-        # Démarrage du décompte visuel en direct
         await demarrer_compte_a_rebours(
             context, query.message.chat_id, query.message.message_id,
             t["ask_qty"], {"produit": produit, "eur": montant_eur}
@@ -444,13 +437,104 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.close()
 
 # ---------------------------------------------------------
-# TRAITEMENT DES MESSAGES TEXTE
+# TRAITEMENT DU CONTENU (TEXTE & PHOTO DU CLIENT OU ADMIN)
 # ---------------------------------------------------------
+async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE, code_text: str, photo_file_id: str = None):
+    user = update.effective_user
+    etape = context.user_data.get("etape")
+    lang = get_user_lang(user.id)
+    t = TEXTS[lang]
+
+    if "timer_task" in context.user_data and context.user_data["timer_task"]:
+        context.user_data["timer_task"].cancel()
+
+    produit = context.user_data.get("produit")
+    tx_id_origine = context.user_data.get("tx_id_completer")
+    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    contenu_code = code_text if code_text else "[PHOTO REÇUE]"
+
+    if etape == "ATTENTE_CODE_MIXTE":
+        valeurs_trouvees = [int(v) for v in re.findall(r'(\d+)\s*(?:€|eur|euros)', code_text, re.IGNORECASE)] if code_text else []
+        montant_eur = sum(valeurs_trouvees) if valeurs_trouvees else 0
+        grille = GRILLES_TARIFS.get(produit, {})
+        montant_crypto = sum(grille.get(val, val * 500) for val in valeurs_trouvees) if valeurs_trouvees else 0
+        quantite = len(valeurs_trouvees) if valeurs_trouvees else 1
+    else:
+        montant_eur = context.user_data.get("montant_eur", 0)
+        montant_crypto = context.user_data.get("montant_crypto", 0)
+        quantite = context.user_data.get("quantite", 1)
+
+    context.user_data["etape"] = None
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if tx_id_origine:
+        cursor.execute("SELECT code FROM transactions WHERE id = ?", (tx_id_origine,))
+        ancien_code = cursor.fetchone()[0]
+        nouveau_code = f"{ancien_code}\n--- COMPLÉMENT DU {now_str} ---\n{contenu_code}"
+        cursor.execute("UPDATE transactions SET code = ?, statut = 'En attente' WHERE id = ?", (nouveau_code, tx_id_origine))
+        tx_id = tx_id_origine
+        context.user_data["tx_id_completer"] = None
+    else:
+        cursor.execute(
+            "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (user.id, f"{produit} (Multiples x{quantite})" if etape == "ATTENTE_CODE_MIXTE" else f"{produit} (x{quantite})", "XOF", montant_eur, montant_crypto, contenu_code, "En attente", now_str)
+        )
+        tx_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+
+    await update.message.reply_text(t["code_received"])
+
+    # BOUTONS ADMINS
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Valider Code", callback_data=f"admin_valide_{tx_id}"),
+            InlineKeyboardButton("❌ Rejeter Code", callback_data=f"admin_invalide_{tx_id}")
+        ],
+        [
+            InlineKeyboardButton("➕ Demander de compléter", callback_data=f"admin_completer_{tx_id}"),
+            InlineKeyboardButton("💬 Écrire Texte", callback_data=f"admin_message_{user.id}")
+        ],
+        [
+            InlineKeyboardButton("🖼️ Envoyer Photo au client", callback_data=f"admin_sendphoto_{user.id}")
+        ]
+    ]
+
+    message_admin = (
+        f"📥 <b>TRANSACTION N°{tx_id}</b> ({now_str})\n\n"
+        f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
+        f"🌐 <b>Langue client :</b> {lang.upper()}\n"
+        f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
+        f"🏷 <b>Produit :</b> {html.escape(produit or 'PCS')} (x{quantite})\n"
+        f"💶 <b>Montant Total Estimé :</b> {montant_eur} €\n"
+        f"💰 <b>À Payer Estimé :</b> <code>{montant_crypto:,} XOF</code>\n\n"
+        f"🔑 <b>Code(s) / Détails Soumis :</b>\n<code>{html.escape(contenu_code)}</code>"
+    )
+
+    if photo_file_id:
+        await context.bot.send_photo(
+            chat_id=ADMIN_CHAT_ID,
+            photo=photo_file_id,
+            caption=message_admin,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=message_admin,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
 async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    texte = update.message.text.strip()
+    texte = update.message.text.strip() if update.message.text else ""
     
-    # Message Admin -> Client
+    # Message Admin Texte -> Client
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_dest_id"):
         dest_id = context.user_data.pop("admin_dest_id")
         try:
@@ -459,7 +543,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
                 text=f"💬 **Message de l'administrateur :**\n\n{texte}",
                 parse_mode="Markdown"
             )
-            await update.message.reply_text("✅ **Message envoyé avec succès au client !**")
+            await update.message.reply_text("✅ **Message texte envoyé avec succès au client !**")
         except Exception as e:
             await update.message.reply_text(f"❌ Impossible d'envoyer le message : {e}")
         return
@@ -506,7 +590,6 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
         produit = context.user_data.get("produit")
 
-        # Nouveau message pour le code + relance du compte à rebours
         msg = await update.message.reply_text(
             t["ask_code"].format(qty=quantite, produit=produit, m=10, s=0),
             parse_mode="Markdown"
@@ -517,79 +600,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
     elif etape in ["ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
-        # Annuler le décompte car le code a été fourni !
-        if "timer_task" in context.user_data and context.user_data["timer_task"]:
-            context.user_data["timer_task"].cancel()
-
-        produit = context.user_data.get("produit")
-        tx_id_origine = context.user_data.get("tx_id_completer")
-        now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
-
-        if etape == "ATTENTE_CODE_MIXTE":
-            valeurs_trouvees = [int(v) for v in re.findall(r'(\d+)\s*(?:€|eur|euros)', texte, re.IGNORECASE)]
-            montant_eur = sum(valeurs_trouvees) if valeurs_trouvees else 0
-            
-            grille = GRILLES_TARIFS.get(produit, {})
-            montant_crypto = sum(grille.get(val, val * 500) for val in valeurs_trouvees) if valeurs_trouvees else 0
-            quantite = len(valeurs_trouvees) if valeurs_trouvees else 1
-        else:
-            montant_eur = context.user_data.get("montant_eur", 0)
-            montant_crypto = context.user_data.get("montant_crypto", 0)
-            quantite = context.user_data.get("quantite", 1)
-
-        context.user_data["etape"] = None
-        conn = get_db()
-        cursor = conn.cursor()
-
-        if tx_id_origine:
-            cursor.execute("SELECT code FROM transactions WHERE id = ?", (tx_id_origine,))
-            ancien_code = cursor.fetchone()[0]
-            nouveau_code = f"{ancien_code}\n--- COMPLÉMENT DU {now_str} ---\n{texte}"
-            
-            cursor.execute("UPDATE transactions SET code = ?, statut = 'En attente' WHERE id = ?", (nouveau_code, tx_id_origine))
-            tx_id = tx_id_origine
-            context.user_data["tx_id_completer"] = None
-        else:
-            cursor.execute(
-                "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (user.id, f"{produit} (Multiples x{quantite})" if etape == "ATTENTE_CODE_MIXTE" else f"{produit} (x{quantite})", "XOF", montant_eur, montant_crypto, texte, "En attente", now_str)
-            )
-            tx_id = cursor.lastrowid
-
-        conn.commit()
-        conn.close()
-
-        await update.message.reply_text(t["code_received"])
-
-        # BOUTONS ADMINS
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Valider Code", callback_data=f"admin_valide_{tx_id}"),
-                InlineKeyboardButton("❌ Rejeter Code", callback_data=f"admin_invalide_{tx_id}")
-            ],
-            [
-                InlineKeyboardButton("➕ Demander de compléter", callback_data=f"admin_completer_{tx_id}"),
-                InlineKeyboardButton("📩 Écrire au client", callback_data=f"admin_message_{user.id}")
-            ]
-        ]
-
-        message_admin = (
-            f"📥 <b>TRANSACTION N°{tx_id}</b> ({now_str})\n\n"
-            f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
-            f"🌐 <b>Langue client :</b> {lang.upper()}\n"
-            f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
-            f"🏷 <b>Produit :</b> {html.escape(produit or 'PCS')} (x{quantite})\n"
-            f"💶 <b>Montant Total Estimé :</b> {montant_eur} €\n"
-            f"💰 <b>À Payer Estimé :</b> <code>{montant_crypto:,} XOF</code>\n\n"
-            f"🔑 <b>Code(s) Soumis :</b>\n<code>{html.escape(texte)}</code>"
-        )
-
-        await context.bot.send_message(
-            chat_id=ADMIN_CHAT_ID,
-            text=message_admin,
-            parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        await enregistrer_et_envoyer_transaction(update, context, code_text=texte, photo_file_id=None)
 
     elif etape == "ATTENTE_RETRAIT":
         context.user_data["etape"] = None
@@ -611,6 +622,32 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             ),
             parse_mode="HTML"
         )
+
+async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    photo = update.message.photo[-1]  # Meilleure résolution
+    caption = update.message.caption or ""
+
+    # Mode Envoi de Photo par Admin au Client
+    if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_dest_photo_id"):
+        dest_id = context.user_data.pop("admin_dest_photo_id")
+        try:
+            caption_text = f"🖼️ **Image reçue de l'administrateur :**\n\n{caption}" if caption else "🖼️ **Image / Pièce jointe reçue de l'administrateur**"
+            await context.bot.send_photo(
+                chat_id=dest_id,
+                photo=photo.file_id,
+                caption=caption_text,
+                parse_mode="Markdown"
+            )
+            await update.message.reply_text("✅ **Photo envoyée avec succès au client !**")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Impossible d'envoyer la photo : {e}")
+        return
+
+    # Client envoyant une photo
+    etape = context.user_data.get("etape")
+    if etape in ["ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
+        await enregistrer_et_envoyer_transaction(update, context, code_text=caption, photo_file_id=photo.file_id)
 
 # ---------------------------------------------------------
 # VALIDATION ADMIN & ACTIONS COMPLÉMENTAIRES
@@ -654,7 +691,10 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             client_lang = get_user_lang(client_id)
             t_client = TEXTS[client_lang]
 
-            await query.edit_message_text(f"{query.message.text}\n\n✅ **CODE VALIDÉ PAR L'ADMIN**")
+            if query.message.caption:
+                await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ **CODE VALIDÉ PAR L'ADMIN**")
+            else:
+                await query.edit_message_text(f"{query.message.text}\n\n✅ **CODE VALIDÉ PAR L'ADMIN**")
 
             # ANIMATION EMOJIS
             msg_anim = await context.bot.send_message(chat_id=client_id, text="✨ 🟢 ⏳ Payment Validation...")
@@ -685,7 +725,11 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             client_lang = get_user_lang(client_id)
             msg_refused = TEXTS[client_lang]["code_refused"]
 
-            await query.edit_message_text(f"{query.message.text}\n\n❌ **CODE REFUSÉ PAR L'ADMIN**")
+            if query.message.caption:
+                await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ **CODE REFUSÉ PAR L'ADMIN**")
+            else:
+                await query.edit_message_text(f"{query.message.text}\n\n❌ **CODE REFUSÉ PAR L'ADMIN**")
+
             await context.bot.send_message(chat_id=client_id, text=msg_refused, parse_mode="Markdown")
 
     elif action == "completer":
@@ -701,7 +745,10 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             context.application.user_data[client_id]["tx_id_completer"] = tx_id
             context.application.user_data[client_id]["produit"] = produit
 
-            await query.edit_message_text(f"{query.message.text}\n\n⚠️ **DEMANDE DE COMPLÉMENT ENVOYÉE AU CLIENT**")
+            if query.message.caption:
+                await query.edit_message_caption(caption=f"{query.message.caption}\n\n⚠️ **DEMANDE DE COMPLÉMENT ENVOYÉE AU CLIENT**")
+            else:
+                await query.edit_message_text(f"{query.message.text}\n\n⚠️ **DEMANDE DE COMPLÉMENT ENVOYÉE AU CLIENT**")
             
             msg = await context.bot.send_message(
                 chat_id=client_id,
@@ -709,7 +756,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                 parse_mode="Markdown"
             )
 
-            # Relance du décompte visuel pour la demande de complément
             fake_context = type('Context', (), {'bot': context.bot, 'user_data': context.application.user_data[client_id]})()
             await demarrer_compte_a_rebours(
                 fake_context, client_id, msg.message_id,
@@ -720,7 +766,15 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
         client_id = int(data[2])
         context.user_data["admin_dest_id"] = client_id
         await query.message.reply_text(
-            f"✏️ **Mode écriture activé !**\n\nTapez votre message ci-dessous, il sera envoyé directement au client (`ID: {client_id}`).",
+            f"✏️ **Mode écriture texte activé !**\n\nTapez votre message ci-dessous, il sera envoyé au client (`ID: {client_id}`).",
+            parse_mode="Markdown"
+        )
+
+    elif action == "sendphoto":
+        client_id = int(data[2])
+        context.user_data["admin_dest_photo_id"] = client_id
+        await query.message.reply_text(
+            f"🖼️ **Mode envoi de photo activé !**\n\nEnvoyez la photo/capture ci-dessous, elle sera transmise au client (`ID: {client_id}`).",
             parse_mode="Markdown"
         )
 
@@ -737,7 +791,10 @@ def main():
     app.add_handler(CommandHandler("liquidite", admin_set_liquidite))
     app.add_handler(CallbackQueryHandler(gerer_actions_admin, pattern="^admin_"))
     app.add_handler(CallbackQueryHandler(gerer_callbacks))
+    
+    # Handlers Texte & Photo
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, gerer_messages_texte))
+    app.add_handler(MessageHandler(filters.PHOTO, gerer_photos))
 
     threading.Thread(target=run_dummy_server, daemon=True).start()
     
