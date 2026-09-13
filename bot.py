@@ -48,6 +48,7 @@ def init_db():
             full_name TEXT,
             username TEXT,
             balance INTEGER DEFAULT 0,
+            points INTEGER DEFAULT 0,
             referrer_id INTEGER,
             is_blocked INTEGER DEFAULT 0
         )
@@ -59,15 +60,25 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             produit TEXT,
+            devise TEXT,
             montant_eur INTEGER,
-            montant_xof INTEGER,
+            montant_crypto INTEGER,
             code TEXT,
             statut TEXT,
             date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
     
-    # Paramètres système (Maintenance)
+    # Promos
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS promos (
+            code TEXT PRIMARY KEY,
+            valeur INTEGER,
+            utilise_par INTEGER DEFAULT 0
+        )
+    """)
+    
+    # Paramètres système
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -83,11 +94,12 @@ def get_db():
     return sqlite3.connect(DB_FILE)
 
 # ---------------------------------------------------------
-# CONFIGURATION ET VARIABLES D'ENVIRONNEMENT
+# CONFIGURATION
 # ---------------------------------------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", 0))
-BONUS_PARRAINAGE = 500  # 500 XOF offert au parrain
+BONUS_PARRAINAGE = 500  # XOF
+CASHBACK_PERCENT = 0.01 # 1% de cashback en solde
 
 GRILLES_TARIFS = {
     "PCS": {20: 7000, 30: 10000, 40: 15000, 50: 23000, 100: 53000, 150: 83000, 250: 143000},
@@ -103,7 +115,8 @@ def main_keyboard():
     keyboard = [
         [InlineKeyboardButton("💳 PCS", callback_data="prod_PCS"), InlineKeyboardButton("💳 Transcash", callback_data="prod_Transcash")],
         [InlineKeyboardButton("💼 Mon Solde & Retrait", callback_data="menu_solde"), InlineKeyboardButton("📜 Mes Transactions", callback_data="menu_history")],
-        [InlineKeyboardButton("👥 Parrainage (+500 XOF)", callback_data="menu_parrainage"), InlineKeyboardButton("💬 Support Client", callback_data="menu_support")]
+        [InlineKeyboardButton("👥 Parrainage (+500 XOF)", callback_data="menu_parrainage"), InlineKeyboardButton("🎁 Code Promo", callback_data="menu_promo")],
+        [InlineKeyboardButton("💬 Support Client", callback_data="menu_support")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -117,7 +130,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = get_db()
     cursor = conn.cursor()
     
-    # Vérification maintenance
     cursor.execute("SELECT value FROM settings WHERE key='maintenance'")
     maint = cursor.fetchone()
     if maint and maint[0] == "1" and user.id != ADMIN_CHAT_ID:
@@ -125,7 +137,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.close()
         return
 
-    # Gestion du parrainage via argument /start <referrer_id>
     referrer_id = None
     if context.args and context.args[0].isdigit():
         ref_candidate = int(context.args[0])
@@ -165,17 +176,20 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Sélectionnez une option :", reply_markup=main_keyboard())
 
     elif data == "menu_solde":
-        cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user.id,))
+        cursor.execute("SELECT balance, points FROM users WHERE user_id = ?", (user.id,))
         row = cursor.fetchone()
         solde = row[0] if row else 0
+        points = row[1] if row else 0
+        
         keyboard = [
             [InlineKeyboardButton("💸 Demander un Retrait", callback_data="action_retrait")],
             [InlineKeyboardButton("🔙 Retour Menu", callback_data="menu_main")]
         ]
         await query.edit_message_text(
             f"💼 <b>VOTRE PORTEFEUILLE</b>\n\n"
-            f"💰 Solde disponible : <b>{solde:,} XOF</b>\n\n"
-            f"<i>Le solde est accumulé grâce aux commissions de parrainage.</i>",
+            f"💰 Solde disponible : <b>{solde:,} XOF</b>\n"
+            f"⭐ Points de fidélité : <b>{points} pts</b>\n\n"
+            f"<i>Gagnez du solde via le parrainage, les codes promos et le cashback (1%).</i>",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
@@ -193,12 +207,12 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["etape"] = "ATTENTE_RETRAIT"
             await query.edit_message_text(
                 f"💸 **DEMANDE DE RETRAIT** ({solde:,} XOF)\n\n"
-                "Veuillez indiquer votre numéro de téléphone (Wave, Orange, MTN, Moov) ainsi que le nom du compte pour recevoir le paiement :"
+                "Veuillez indiquer votre numéro de téléphone (Wave, Orange, MTN, Moov) ainsi que le nom du compte :"
             )
 
     elif data == "menu_history":
         cursor.execute(
-            "SELECT produit, montant_eur, montant_xof, statut, date_creation FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 5",
+            "SELECT produit, montant_eur, montant_crypto, statut, date_creation FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 5",
             (user.id,)
         )
         rows = cursor.fetchall()
@@ -228,19 +242,47 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
 
-    elif data == "menu_support":
-        context.user_data["etape"] = "ATTENTE_SUPPORT"
+    elif data == "menu_promo":
+        context.user_data["etape"] = "ATTENTE_PROMO"
         keyboard = [[InlineKeyboardButton("❌ Annuler", callback_data="menu_main")]]
         await query.edit_message_text(
-            "💬 <b>SUPPORT CLIENT</b>\n\nPosez votre question ou détaillez votre problème ci-dessous. Un administrateur vous répondra directement :",
+            "🎁 <b>CODE PROMO</b>\n\nEntrez votre code promo ci-dessous pour créditer votre solde :",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
 
+    elif data == "menu_support":
+        context.user_data["etape"] = "ATTENTE_SUPPORT"
+        keyboard = [[InlineKeyboardButton("❌ Annuler", callback_data="menu_main")]]
+        await query.edit_message_text(
+            "💬 <b>SUPPORT CLIENT</b>\n\nPosez votre question ci-dessous. Un administrateur vous répondra :",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+    elif data.startswith("devise_"):
+        devise = data.split("_")[1]
+        context.user_data["devise"] = devise
+        produit = context.user_data.get("produit")
+
+        tarifs = GRILLES_TARIFS.get(produit, {})
+        keyboard = [[InlineKeyboardButton(f"{eur}€ ➡️ {xof:,} {devise}", callback_data=f"montant_{eur}_{xof}")] for eur, xof in tarifs.items()]
+        keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_main")])
+
+        await query.edit_message_text(
+            text=f"Service : <b>{html.escape(produit)}</b> ({devise})\n\nChoisissez le montant de votre recharge :",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML",
+        )
+
+    elif data.startswith("rate_"):
+        rating = data.split("_")[1]
+        await query.edit_message_text(f"Merci pour votre évaluation ! ⭐ ({rating}/5)")
+
     conn.close()
 
 # ---------------------------------------------------------
-# SÉLECTION DU PRODUIT ET DU MONTANT
+# SELECTION PRODUIT & DEVISE
 # ---------------------------------------------------------
 async def gerer_choix_produit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -249,12 +291,14 @@ async def gerer_choix_produit(update: Update, context: ContextTypes.DEFAULT_TYPE
     produit = query.data.split("_")[1]
     context.user_data["produit"] = produit
 
-    tarifs = GRILLES_TARIFS.get(produit, {})
-    keyboard = [[InlineKeyboardButton(f"{eur}€ ➡️ {xof:,} XOF", callback_data=f"montant_{eur}_{xof}")] for eur, xof in tarifs.items()]
-    keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_main")])
+    keyboard = [
+        [InlineKeyboardButton("🇨🇮 🇸🇳 🇲🇱 XOF (UEMOA)", callback_data="devise_XOF")],
+        [InlineKeyboardButton("🇨🇲 🇬🇦 🇨🇬 XAF (CEMAC)", callback_data="devise_XAF")],
+        [InlineKeyboardButton("🔙 Retour", callback_data="menu_main")]
+    ]
 
     await query.edit_message_text(
-        text=f"Vous avez choisi : <b>{html.escape(produit)}</b>\n\nChoisissez le montant de votre recharge :",
+        text=f"Vous avez choisi : <b>{html.escape(produit)}</b>\n\nSélectionnez votre zone / devise de réception :",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML",
     )
@@ -264,25 +308,26 @@ async def gerer_choix_montant(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
 
     data = query.data.split("_")
-    montant_eur, montant_xof = int(data[1]), int(data[2])
+    montant_eur, montant_crypto = int(data[1]), int(data[2])
 
     context.user_data["montant_eur"] = montant_eur
-    context.user_data["montant_xof"] = montant_xof
+    context.user_data["montant_crypto"] = montant_crypto
     context.user_data["etape"] = "ATTENTE_CODE"
 
     produit = context.user_data.get("produit")
+    devise = context.user_data.get("devise", "XOF")
 
     await query.edit_message_text(
         text=f"📊 <b>Récapitulatif de la commande :</b>\n"
              f"• Service : <b>{html.escape(produit)}</b>\n"
              f"• Montant du coupon : <b>{montant_eur} €</b>\n"
-             f"• Vous recevrez : <b>{montant_xof:,} XOF</b>\n\n"
+             f"• Vous recevrez : <b>{montant_crypto:,} {devise}</b>\n\n"
              f"👉 Veuillez écrire et envoyer votre <b>code de recharge {html.escape(produit)}</b> dans ce chat :",
         parse_mode="HTML",
     )
 
 # ---------------------------------------------------------
-# TRAITEMENT DES MESSAGES TEXTE UTILISATEUR
+# TRAITEMENT DES MESSAGES TEXTE
 # ---------------------------------------------------------
 async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     etape = context.user_data.get("etape")
@@ -291,21 +336,22 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if etape == "ATTENTE_CODE":
         produit = context.user_data.get("produit")
+        devise = context.user_data.get("devise", "XOF")
         montant_eur = context.user_data.get("montant_eur")
-        montant_xof = context.user_data.get("montant_xof")
+        montant_crypto = context.user_data.get("montant_crypto")
         context.user_data["etape"] = None
 
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO transactions (user_id, produit, montant_eur, montant_xof, code, statut) VALUES (?, ?, ?, ?, ?, ?)",
-            (user.id, produit, montant_eur, montant_xof, texte, "En attente")
+            "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user.id, produit, devise, montant_eur, montant_crypto, texte, "En attente")
         )
         tx_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
-        await update.message.reply_text("⏳ Code(s) reçu(s) ! Nous vérifions et rechargeons le coupon. Veuillez patienter un instant...")
+        await update.message.reply_text("⏳ Code(s) reçu(s) ! Nous vérifions le coupon. Veuillez patienter un instant...")
 
         keyboard = [
             [
@@ -320,7 +366,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
             f"🏷 <b>Produit :</b> {html.escape(produit)}\n"
             f"💶 <b>Montant Coupon :</b> {montant_eur} €\n"
-            f"💰 <b>À Payer :</b> <code>{montant_xof:,} XOF</code>\n\n"
+            f"💰 <b>À Payer :</b> <code>{montant_crypto:,} {devise}</code>\n\n"
             f"🔑 <b>Code Soumis :</b>\n<code>{html.escape(texte)}</code>"
         )
 
@@ -330,7 +376,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
     elif etape == "ATTENTE_NUMERO":
         context.user_data["etape"] = None
-        await update.message.reply_text("Merci ! Votre numéro de dépôt a été transmis à l'administrateur. Le paiement est en cours de traitement.")
+        await update.message.reply_text("Merci ! Votre numéro de dépôt a été transmis. Le paiement est en cours de traitement.")
 
         keyboard = [[InlineKeyboardButton("💳 Confirmer Paiement Effectué", callback_data=f"admin_paye_{user.id}")]]
 
@@ -343,6 +389,23 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML",
         )
+
+    elif etape == "ATTENTE_PROMO":
+        context.user_data["etape"] = None
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT valeur, utilise_par FROM promos WHERE code = ?", (texte,))
+        promo = cursor.fetchone()
+
+        if promo and promo[1] == 0:
+            valeur = promo[0]
+            cursor.execute("UPDATE promos SET utilise_par = ? WHERE code = ?", (user.id, texte))
+            cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (valeur, user.id))
+            conn.commit()
+            await update.message.reply_text(f"🎉 **Code Promo valide !** Vous avez reçu **+{valeur:,} XOF** sur votre solde.", parse_mode="Markdown")
+        else:
+            await update.message.reply_text("❌ Code promo invalide ou déjà utilisé.")
+        conn.close()
 
     elif etape == "ATTENTE_RETRAIT":
         context.user_data["etape"] = None
@@ -365,7 +428,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
     elif etape == "ATTENTE_SUPPORT":
         context.user_data["etape"] = None
-        await update.message.reply_text("Votre message a été transmis au support. Nous vous répondrons dans les plus brefs délais.")
+        await update.message.reply_text("Votre message a été transmis au support.")
         await context.bot.send_message(
             chat_id=ADMIN_CHAT_ID,
             text=f"💬 <b>MESSAGE SUPPORT</b>\n\n"
@@ -389,14 +452,17 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if action == "valide":
         tx_id = int(data[2])
-        cursor.execute("SELECT user_id, produit, montant_eur FROM transactions WHERE id = ?", (tx_id,))
+        cursor.execute("SELECT user_id, produit, montant_crypto FROM transactions WHERE id = ?", (tx_id,))
         tx = cursor.fetchone()
         
         if tx:
-            client_id = tx[0]
+            client_id, produit, montant_crypto = tx[0], tx[1], tx[2]
             cursor.execute("UPDATE transactions SET statut = 'Validé' WHERE id = ?", (tx_id,))
             
-            # Application de la commission parrain si premier achat
+            # Application du Cashback (1%)
+            cashback = int(montant_crypto * CASHBACK_PERCENT)
+            cursor.execute("UPDATE users SET balance = balance + ?, points = points + 10 WHERE user_id = ?", (cashback, client_id))
+
             cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (client_id,))
             ref_row = cursor.fetchone()
             if ref_row and ref_row[0]:
@@ -407,7 +473,7 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                     try:
                         await context.bot.send_message(
                             chat_id=referrer_id,
-                            text=f"🎉 **Bonus Parrainage !** Votre filleul a effectué sa première transaction. **+{BONUS_PARRAINAGE} XOF** ont été ajoutés à votre solde."
+                            text=f"🎉 **Bonus Parrainage !** Votre filleul a effectué sa première transaction. **+{BONUS_PARRAINAGE} XOF** ajoutés à votre solde."
                         )
                     except Exception:
                         pass
@@ -417,9 +483,9 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             await query.edit_message_text(text=f"{query.message.text}\n\n✅ <b>STATUT : CODE VALIDE</b>", parse_mode="HTML")
             await context.bot.send_message(
                 chat_id=client_id,
-                text="✅ <b>Votre code est valide et accepté !</b>\n\n"
-                     "Veuillez répondre en envoyant votre **Numéro de dépôt** (Wave, Orange, MTN, Moov) avec le nom du compte pour recevoir votre paiement :",
-                parse_mode="Markdown"
+                text=f"✅ <b>Votre code est valide !</b>\n🎁 Vous avez gagné <b>+{cashback:,} XOF</b> de cashback sur votre solde.\n\n"
+                     "Veuillez répondre en envoyant votre **Numéro de dépôt** (Wave, Orange, MTN, Moov) :",
+                parse_mode="HTML"
             )
             context.application.user_data[client_id]["etape"] = "ATTENTE_NUMERO"
 
@@ -435,24 +501,51 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             await query.edit_message_text(text=f"{query.message.text}\n\n❌ <b>STATUT : CODE REFUSÉ</b>", parse_mode="HTML")
             await context.bot.send_message(
                 chat_id=client_id,
-                text="❌ <b>Code invalide ou déjà utilisé.</b> Veuillez vérifier le coupon et relancer la procédure via le menu.",
+                text="❌ <b>Code invalide ou déjà utilisé.</b> Veuillez relancer via le menu.",
                 parse_mode="Markdown"
             )
 
     elif action == "paye":
         client_id = int(data[2])
         await query.edit_message_text(text=f"{query.message.text}\n\n💳 <b>STATUT : PAIEMENT CONFIRMÉ</b>", parse_mode="HTML")
+        
+        rate_keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("⭐ 1", callback_data="rate_1"),
+                InlineKeyboardButton("⭐ 2", callback_data="rate_2"),
+                InlineKeyboardButton("⭐ 3", callback_data="rate_3"),
+                InlineKeyboardButton("⭐ 4", callback_data="rate_4"),
+                InlineKeyboardButton("⭐ 5", callback_data="rate_5"),
+            ]
+        ])
+        
         await context.bot.send_message(
             chat_id=client_id,
-            text="🎉 <b>Paiement effectué avec succès !</b> Le transfert a été envoyé sur votre compte. Merci pour votre confiance !",
+            text="🎉 <b>Paiement effectué avec succès !</b> Le transfert a été envoyé.\n\nNotez votre expérience :",
+            reply_markup=rate_keyboard,
             parse_mode="HTML"
         )
 
     conn.close()
 
 # ---------------------------------------------------------
-# COMMANDES PANNEAU ADMINISTRATEUR
+# COMMANDES ADMINISTRATEUR
 # ---------------------------------------------------------
+async def admin_create_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_CHAT_ID:
+        return
+    try:
+        code = context.args[0]
+        valeur = int(context.args[1])
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO promos (code, valeur) VALUES (?, ?)", (code, valeur))
+        conn.commit()
+        conn.close()
+        await update.message.reply_text(f"✅ Code Promo créé : <code>{code}</code> pour <b>{valeur:,} XOF</b>", parse_mode="HTML")
+    except Exception:
+        await update.message.reply_text("Usage: `/addpromo NOMCODE VALEUR`", parse_mode="Markdown")
+
 async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
         return
@@ -460,7 +553,7 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM users")
     nb_users = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*), SUM(montant_xof) FROM transactions WHERE statut = 'Validé'")
+    cursor.execute("SELECT COUNT(*), SUM(montant_crypto) FROM transactions WHERE statut = 'Validé'")
     tx_stats = cursor.fetchone()
     conn.close()
 
@@ -469,9 +562,9 @@ async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         f"📊 <b>STATISTIQUES DU BOT</b>\n\n"
-        f"👥 Utilisateurs totaux : <b>{nb_users}</b>\n"
-        f"✅ Transactions validées : <b>{total_tx}</b>\n"
-        f"💰 Volume d'échange total : <b>{total_vol:,} XOF</b>",
+        f"👥 Utilisateurs : <b>{nb_users}</b>\n"
+        f"✅ Transactions : <b>{total_tx}</b>\n"
+        f"💰 Volume total : <b>{total_vol:,} XOF</b>",
         parse_mode="HTML"
     )
 
@@ -495,7 +588,7 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     msg = " ".join(context.args)
     if not msg:
-        await update.message.reply_text("Usage: `/broadcast Votre message annonce ici`", parse_mode="Markdown")
+        await update.message.reply_text("Usage: `/broadcast Votre message`", parse_mode="Markdown")
         return
 
     conn = get_db()
@@ -507,7 +600,7 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     count = 0
     for u in users:
         try:
-            await context.bot.send_message(chat_id=u[0], text=f"📢 <b>ANNOUNCE</b>\n\n{html.escape(msg)}", parse_mode="HTML")
+            await context.bot.send_message(chat_id=u[0], text=f"📢 <b>ANNONCE</b>\n\n{html.escape(msg)}", parse_mode="HTML")
             count += 1
         except Exception:
             pass
@@ -515,18 +608,19 @@ async def admin_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Message diffusé à {count} utilisateurs.")
 
 # ---------------------------------------------------------
-# DÉMARRAGE DE L'APPLICATION
+# DÉMARRAGE
 # ---------------------------------------------------------
 def main():
     init_db()
 
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Handlers Commandes
+    # Handlers Admin
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", admin_stats))
     app.add_handler(CommandHandler("maintenance", admin_maintenance))
     app.add_handler(CommandHandler("broadcast", admin_broadcast))
+    app.add_handler(CommandHandler("addpromo", admin_create_promo))
 
     # Handlers Callbacks & Messages
     app.add_handler(CallbackQueryHandler(gerer_choix_produit, pattern="^prod_"))
