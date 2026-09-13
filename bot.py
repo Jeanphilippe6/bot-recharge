@@ -143,6 +143,12 @@ TEXTS = {
             "🙏 **Merci pour votre note de {stars}/7 !** Votre avis nous aide à"
             " nous améliorer."
         ),
+        "liquidite_insuffisante": (
+            "⚠️ **TRANSACTION IMPOSSIBLE** ⚠️\n\nLa liquidité disponible"
+            " actuellement ({liq:,} XOF) est insuffisante pour traiter cette"
+            " transaction de {montant:,} XOF. Veuillez réessayer plus tard ou"
+            " choisir un montant inférieur."
+        ),
         "back": "🔙 Retour",
     },
     "en": {
@@ -182,6 +188,12 @@ TEXTS = {
         "thanks_rate": (
             "🙏 **Thank you for your {stars}/7 rating!** Your feedback is"
             " appreciated."
+        ),
+        "liquidite_insuffisante": (
+            "⚠️ **TRANSACTION NOT POSSIBLE** ⚠️\n\nThe current available"
+            " liquidity ({liq:,} XOF) is insufficient to process this"
+            " transaction of {montant:,} XOF. Please try again later or select"
+            " a smaller amount."
         ),
         "back": "🔙 Back",
     },
@@ -439,14 +451,31 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
   elif data.startswith("montant_"):
     parts = data.split("_")
-    context.user_data["montant_eur"] = int(parts[1])
-    context.user_data["montant_crypto"] = int(parts[2])
-    context.user_data["etape"] = "ATTENTE_CODE"
+    montant_eur = int(parts[1])
+    montant_crypto = int(parts[2])
 
-    produit = context.user_data.get("produit")
-    await query.edit_message_text(
-        t["ask_code"].format(produit=produit), parse_mode="Markdown"
-    )
+    # VERIFICATION DE LA LIQUIDITÉ DISPONIBLE
+    cursor.execute("SELECT value FROM settings WHERE key='liquidite'")
+    liquidite = int(cursor.fetchone()[0])
+
+    if liquidite <= 0 or montant_crypto > liquidite:
+      keyboard = [[InlineKeyboardButton(t["back"], callback_data="menu_main")]]
+      await query.edit_message_text(
+          t["liquidite_insuffisante"].format(
+              liq=liquidite, montant=montant_crypto
+          ),
+          reply_markup=InlineKeyboardMarkup(keyboard),
+          parse_mode="Markdown",
+      )
+    else:
+      context.user_data["montant_eur"] = montant_eur
+      context.user_data["montant_crypto"] = montant_crypto
+      context.user_data["etape"] = "ATTENTE_CODE"
+
+      produit = context.user_data.get("produit")
+      await query.edit_message_text(
+          t["ask_code"].format(produit=produit), parse_mode="Markdown"
+      )
 
   elif data.startswith("rate_"):
     parts = data.split("_")
