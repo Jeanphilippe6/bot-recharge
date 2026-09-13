@@ -76,9 +76,10 @@ def init_db():
             value TEXT
         )
     """)
+  # LIQUIDITÉ INITIALE MISE À 50.000.000 XOF
   cursor.execute(
       "INSERT OR IGNORE INTO settings (key, value) VALUES ('liquidite',"
-      " '1000000')"
+      " '50000000')"
   )
   cursor.execute(
       "INSERT OR IGNORE INTO settings (key, value) VALUES ('maintenance', '0')"
@@ -186,7 +187,7 @@ TEXTS = {
     },
 }
 
-# GRILLE COMPLETE DES TARIFS MISE À JOUR EXATEMENT SELON VOS SPÉCIFICATIONS
+# GRILLE DE TARIFS REINTÉGRÉE
 GRILLES_TARIFS = {
     "PCS": {
         20: 7000,
@@ -702,7 +703,7 @@ async def admin_set_liquidite(
     )
   except Exception:
     await update.message.reply_text(
-        "Usage: `/liquidite 5000000`", parse_mode="Markdown"
+        "Usage: `/liquidite 50000000`", parse_mode="Markdown"
     )
 
 
