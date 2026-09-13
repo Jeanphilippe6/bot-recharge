@@ -71,7 +71,6 @@ def init_db():
             value TEXT
         )
     """)
-    # LIQUIDITÉ INITIALE MISE À 50.000.000 XOF
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('liquidite', '50000000')")
     cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('maintenance', '0')")
 
@@ -109,6 +108,7 @@ TEXTS = {
         "code_received": "⏳ Code(s) reçu(s) ! Vérification en cours...",
         "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée avec succès !",
         "code_refused": "❌ **Code invalide ou déjà utilisé.** Veuillez réessayer.",
+        "completer_demande": "⚠️ **RECHARGE INCOMPLÈTE !** ⚠️\n\nL'administrateur signale qu'il manque un ou plusieurs codes pour votre recharge **{produit}**.\n\n👉 Veuillez répondre ci-dessous en envoyant les codes manquants :",
         "retrait_insuffisant": "❌ **Solde insuffisant.** Le montant minimum pour effectuer un retrait est de {min_retrait:,} XOF.",
         "retrait_demande": "💸 **DEMANDE DE RETRAIT** ({solde:,} XOF)\n\nVeuillez envoyer votre numéro de dépôt (Wave, Orange, MTN, Moov) :",
         "rate_prompt": "⭐ **ÉVALUATION DE LA TRANSACTION** ⭐\nComment évaluez-vous ce service ? Notez sur 7 étoiles :",
@@ -135,6 +135,7 @@ TEXTS = {
         "code_received": "⏳ Code(s) received! Verification in progress...",
         "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated!",
         "code_refused": "❌ **Invalid code or already used.** Please try again.",
+        "completer_demande": "⚠️ **INCOMPLETE TOP-UP!** ⚠️\n\nThe administrator reported missing code(s) for your **{produit}** recharge.\n\n👉 Please reply below with the missing code(s):",
         "retrait_insuffisant": "❌ **Insufficient balance.** The minimum withdrawal amount is {min_retrait:,} XOF.",
         "retrait_demande": "💸 **WITHDRAWAL REQUEST** ({solde:,} XOF)\n\nPlease send your payment account details:",
         "rate_prompt": "⭐ **TRANSACTION RATING** ⭐\nHow would you rate our service? Please give a rating out of 7 stars:",
@@ -145,7 +146,6 @@ TEXTS = {
     }
 }
 
-# GRILLE DE TARIFS
 GRILLES_TARIFS = {
     "PCS": {
         20: 7000,
@@ -371,9 +371,25 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # TRAITEMENT DES MESSAGES TEXTE
 # ---------------------------------------------------------
 async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    etape = context.user_data.get("etape")
-    texte = update.message.text.strip()
     user = update.effective_user
+    texte = update.message.text.strip()
+    
+    # 1. MESSAGE REÇU DE L'ADMIN EN TRAIN D'ÉCRIRE À UN CLIENT
+    if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_dest_id"):
+        dest_id = context.user_data.pop("admin_dest_id")
+        try:
+            await context.bot.send_message(
+                chat_id=dest_id,
+                text=f"💬 **Message de l'administrateur :**\n\n{texte}",
+                parse_mode="Markdown"
+            )
+            await update.message.reply_text("✅ **Message envoyé avec succès au client !**")
+        except Exception as e:
+            await update.message.reply_text(f"❌ Impossible d'envoyer le message : {e}")
+        return
+
+    # 2. MESSAGE RÉPONSE OU COMMANDE DU CLIENT
+    etape = context.user_data.get("etape")
     lang = get_user_lang(user.id)
     t = TEXTS[lang]
 
@@ -389,7 +405,6 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         montant_eur_total = montant_eur_unitaire * quantite
         montant_crypto_total = montant_crypto_unitaire * quantite
 
-        # VERIFICATION DE LA LIQUIDITÉ DISPONIBLE
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("SELECT value FROM settings WHERE key='liquidite'")
@@ -422,33 +437,55 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         montant_eur = context.user_data.get("montant_eur")
         montant_crypto = context.user_data.get("montant_crypto")
         quantite = context.user_data.get("quantite", 1)
+        
+        # Récupération de la transaction d'origine si c'est un complément
+        tx_id_origine = context.user_data.get("tx_id_completer")
         context.user_data["etape"] = None
-
         now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (user.id, f"{produit} (x{quantite})", "XOF", montant_eur, montant_crypto, texte, "En attente", now_str)
-        )
-        tx_id = cursor.lastrowid
+
+        if tx_id_origine:
+            # Mise à jour du code dans la transaction existante
+            cursor.execute("SELECT code FROM transactions WHERE id = ?", (tx_id_origine,))
+            ancien_code = cursor.fetchone()[0]
+            nouveau_code = f"{ancien_code}\n--- COMPLÉMENT DU {now_str} ---\n{texte}"
+            
+            cursor.execute("UPDATE transactions SET code = ?, statut = 'En attente' WHERE id = ?", (nouveau_code, tx_id_origine))
+            tx_id = tx_id_origine
+            context.user_data["tx_id_completer"] = None
+        else:
+            # Nouvelle transaction
+            cursor.execute(
+                "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (user.id, f"{produit} (x{quantite})", "XOF", montant_eur, montant_crypto, texte, "En attente", now_str)
+            )
+            tx_id = cursor.lastrowid
+
         conn.commit()
         conn.close()
 
         await update.message.reply_text(t["code_received"])
 
-        keyboard = [[
-            InlineKeyboardButton("✅ Valider Code", callback_data=f"admin_valide_{tx_id}"),
-            InlineKeyboardButton("❌ Rejeter Code", callback_data=f"admin_invalide_{tx_id}")
-        ]]
+        # BOUTONS ADMINS : Validation, Rejet, Demande de complément, Ecrire au client
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Valider Code", callback_data=f"admin_valide_{tx_id}"),
+                InlineKeyboardButton("❌ Rejeter Code", callback_data=f"admin_invalide_{tx_id}")
+            ],
+            [
+                InlineKeyboardButton("➕ Demander de compléter", callback_data=f"admin_completer_{tx_id}"),
+                InlineKeyboardButton("📩 Écrire au client", callback_data=f"admin_message_{user.id}")
+            ]
+        ]
 
         message_admin = (
             f"📥 <b>TRANSACTION N°{tx_id}</b> ({now_str})\n\n"
             f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
             f"🌐 <b>Langue client :</b> {lang.upper()}\n"
             f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
-            f"🏷 <b>Produit :</b> {html.escape(produit)} (x{quantite})\n"
+            f"🏷 <b>Produit :</b> {html.escape(produit or 'PCS')} (x{quantite})\n"
             f"💶 <b>Montant Total Coupon :</b> {montant_eur} €\n"
             f"💰 <b>À Payer :</b> <code>{montant_crypto:,} XOF</code>\n\n"
             f"🔑 <b>Code(s) Soumis :</b>\n<code>{html.escape(texte)}</code>"
@@ -483,7 +520,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 # ---------------------------------------------------------
-# VALIDATION ADMIN & ANIMATIONS
+# VALIDATION ADMIN & ACTIONS COMPLÉMENTAIRES
 # ---------------------------------------------------------
 async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -557,6 +594,34 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             await query.edit_message_text(f"{query.message.text}\n\n❌ **CODE REFUSÉ PAR L'ADMIN**")
             await context.bot.send_message(chat_id=client_id, text=msg_refused, parse_mode="Markdown")
+
+    elif action == "completer":
+        tx_id = int(data[2])
+        cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
+        tx = cursor.fetchone()
+        if tx:
+            client_id, produit = tx[0], tx[1]
+            client_lang = get_user_lang(client_id)
+
+            # Passer le client en état d'attente de complément
+            context.application.user_data[client_id]["etape"] = "ATTENTE_CODE"
+            context.application.user_data[client_id]["tx_id_completer"] = tx_id
+            context.application.user_data[client_id]["produit"] = produit
+
+            await query.edit_message_text(f"{query.message.text}\n\n⚠️ **DEMANDE DE COMPLÉMENT ENVOYÉE AU CLIENT**")
+            await context.bot.send_message(
+                chat_id=client_id,
+                text=TEXTS[client_lang]["completer_demande"].format(produit=produit),
+                parse_mode="Markdown"
+            )
+
+    elif action == "message":
+        client_id = int(data[2])
+        context.user_data["admin_dest_id"] = client_id
+        await query.message.reply_text(
+            f"✏️ **Mode écriture activé !**\n\nTapez votre message ci-dessous, il sera envoyé directement au client (`ID: {client_id}`).",
+            parse_mode="Markdown"
+        )
 
     conn.close()
 
