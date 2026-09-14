@@ -63,7 +63,9 @@ def init_db():
             code TEXT,
             statut TEXT,
             date_creation TEXT,
-            rating INTEGER DEFAULT 0
+            rating INTEGER DEFAULT 0,
+            methode_paiement TEXT,
+            numero_paiement TEXT
         )
     """)
 
@@ -111,6 +113,9 @@ TEXTS = {
         "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous (texte ou photo) en précisant le montant.\n\n**Exemple de format texte :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "code_received": "⏳ Code/Photo reçu(e) ! Vérification en cours...",
         "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée avec succès !",
+        "select_payment_method": "📲 **CHOIX DU MODE DE PAIEMENT**\n\nVotre recharge est validée ! Veuillez sélectionner le moyen par lequel vous souhaitez recevoir votre paiement ({montant:,} XOF) :",
+        "ask_phone_number": "📱 Veuillez envoyer votre numéro de téléphone **{methode}** ci-dessous pour recevoir le paiement :",
+        "phone_received": "✅ Numéro reçu ! L'administrateur procède à l'envoi du paiement...",
         "code_refused": "❌ **Code invalide ou déjà utilisé.** Veuillez réessayer.",
         "completer_demande": "⚠️ **RECHARGE INCOMPLÈTE !** ⚠️\n\nL'administrateur signale qu'il manque un ou plusieurs codes pour votre recharge **{produit}**.\n\n👉 Veuillez répondre ci-dessous en envoyant les codes ou photos manquants :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "retrait_insuffisant": "❌ **Solde insuffisant.** Le montant minimum pour effectuer un retrait est de {min_retrait:,} XOF.",
@@ -140,6 +145,9 @@ TEXTS = {
         "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below (text or photo), specifying the amount.\n\n**Example text format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "code_received": "⏳ Code/Photo received! Verification in progress...",
         "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated!",
+        "select_payment_method": "📲 **SELECT PAYMENT METHOD**\n\nYour top-up is validated! Please select how you want to receive your payment ({montant:,} XOF):",
+        "ask_phone_number": "📱 Please enter your **{methode}** phone number below to receive payment:",
+        "phone_received": "✅ Number received! The administrator is processing your payment...",
         "code_refused": "❌ **Invalid code or already used.** Please try again.",
         "completer_demande": "⚠️ **INCOMPLETE TOP-UP!** ⚠️\n\nThe administrator reported missing code(s) for your **{produit}** recharge.\n\n👉 Please reply below with the missing code(s) or photo(s):\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "retrait_insuffisant": "❌ **Insufficient balance.** The minimum withdrawal amount is {min_retrait:,} XOF.",
@@ -424,6 +432,20 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             t["ask_qty"], {"produit": produit, "eur": montant_eur}
         )
 
+    elif data.startswith("paymethod_"):
+        parts = data.split("_")
+        methode = parts[1]
+        tx_id = int(parts[2])
+
+        context.user_data["etape"] = "ATTENTE_NUMERO_PAIEMENT"
+        context.user_data["methode_paiement"] = methode
+        context.user_data["tx_id_paiement"] = tx_id
+
+        await query.edit_message_text(
+            t["ask_phone_number"].format(methode=methode),
+            parse_mode="Markdown"
+        )
+
     elif data.startswith("rate_"):
         parts = data.split("_")
         tx_id = int(parts[1])
@@ -602,6 +624,40 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
     elif etape in ["ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
         await enregistrer_et_envoyer_transaction(update, context, code_text=texte, photo_file_id=None)
 
+    elif etape == "ATTENTE_NUMERO_PAIEMENT":
+        context.user_data["etape"] = None
+        methode = context.user_data.get("methode_paiement", "Wave / Orange Money")
+        tx_id = context.user_data.get("tx_id_paiement")
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE transactions SET methode_paiement = ?, numero_paiement = ? WHERE id = ?", (methode, texte, tx_id))
+        cursor.execute("SELECT montant_crypto, produit FROM transactions WHERE id = ?", (tx_id,))
+        row = cursor.fetchone()
+        montant_crypto = row[0] if row else 0
+        conn.commit()
+        conn.close()
+
+        await update.message.reply_text(t["phone_received"])
+
+        # Notification à l'admin avec le bouton pour envoyer l'option de payer au client
+        keyboard = [
+            [InlineKeyboardButton("📲 Envoyer Option de Payer au Client", callback_data=f"admin_sendpayoption_{tx_id}")]
+        ]
+        await context.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=(
+                f"📱 <b>NUMÉRO DE PAIEMENT REÇU !</b>\n\n"
+                f"🆔 <b>Transaction N° :</b> {tx_id}\n"
+                f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
+                f"💳 <b>Méthode :</b> {methode}\n"
+                f"📞 <b>Numéro client :</b> <code>{html.escape(texte)}</code>\n"
+                f"💰 <b>Montant à envoyer :</b> <code>{montant_crypto:,} XOF</code>"
+            ),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
     elif etape == "ATTENTE_RETRAIT":
         context.user_data["etape"] = None
         conn = get_db()
@@ -706,6 +762,58 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             msg_success = t_client["success_recharge"].format(produit=produit)
             await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
 
+            # DEMANDE DE SÉLECTION DU MODE DE PAIEMENT (WAVE OU ORANGE MONEY)
+            pay_keyboard = [
+                [
+                    InlineKeyboardButton("🌊 Wave", callback_data=f"paymethod_Wave_{tx_id}"),
+                    InlineKeyboardButton("🍊 Orange Money", callback_data=f"paymethod_OrangeMoney_{tx_id}")
+                ]
+            ]
+            await context.bot.send_message(
+                chat_id=client_id,
+                text=t_client["select_payment_method"].format(montant=montant),
+                reply_markup=InlineKeyboardMarkup(pay_keyboard),
+                parse_mode="Markdown"
+            )
+
+    elif action == "sendpayoption":
+        tx_id = int(data[2])
+        cursor.execute("SELECT user_id, mehtode_paiement, numero_paiement, montant_crypto FROM transactions WHERE id = ?", (tx_id,))
+        tx = cursor.fetchone()
+        
+        # Secours si le champ methode est vide
+        cursor.execute("SELECT user_id, montant_crypto, methode_paiement, numero_paiement FROM transactions WHERE id = ?", (tx_id,))
+        tx = cursor.fetchone()
+        
+        if tx:
+            client_id, montant, methode, numero = tx[0], tx[1], tx[2], tx[3]
+            client_lang = get_user_lang(client_id)
+            t_client = TEXTS[client_lang]
+
+            if query.message.caption:
+                await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ **OPTION DE PAIEMENT ENVOYÉE AU CLIENT**")
+            else:
+                await query.edit_message_text(f"{query.message.text}\n\n✅ **OPTION DE PAIEMENT ENVOYÉE AU CLIENT**")
+
+            # Bouton de paiement envoyé au client selon l'opérateur
+            if methode == "Wave":
+                payment_url = f"https://wave.com/send?phone={numero}"
+                pay_btn_keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🌊 Payer via Wave", url=payment_url)]
+                ])
+                txt_payment = f"💳 **OPTION DE PAIEMENT GENEREE**\n\nVotre paiement de **{montant:,} XOF** est prêt sur votre compte Wave (`{numero}`). Cliquez sur le bouton ci-dessous pour effectuer le paiement directement :"
+            else:
+                pay_btn_keyboard = None
+                txt_payment = f"💳 **OPTION DE PAIEMENT GENEREE**\n\nUn transfert Orange Money de **{montant:,} XOF** a été envoyé à votre numéro `{numero}`.\n\nCode USSD rapide : `#144#` pour valider ou vérifier la réception."
+
+            await context.bot.send_message(
+                chat_id=client_id,
+                text=txt_payment,
+                reply_markup=pay_btn_keyboard,
+                parse_mode="Markdown"
+            )
+
+            # Évaluation après réception
             await context.bot.send_message(
                 chat_id=client_id,
                 text=t_client["rate_prompt"],
