@@ -116,6 +116,8 @@ TEXTS = {
         "select_payment_method": "📲 **CHOIX DU MODE DE PAIEMENT**\n\nVotre recharge est validée ! Veuillez sélectionner le moyen par lequel vous souhaitez recevoir votre paiement ({montant:,} XOF) :",
         "ask_phone_number": "📱 Veuillez envoyer votre numéro de téléphone **{methode}** ci-dessous pour recevoir le paiement :",
         "phone_received": "✅ Numéro reçu ! L'administrateur procède à l'envoi du paiement...",
+        "payment_sent": "💸 **PAIEMENT EFFECTUÉ !** 💸\n\nVotre paiement de **{montant:,} XOF** a été envoyé avec succès sur votre compte **{methode}** ({numero}). Merci pour votre confiance !",
+        "phone_unreachable": "⚠️ **NUMÉRO INATTEIGNABLE OU INVALIDE** ⚠️\n\nL'administrateur signale que votre numéro **{numero}** est injoignable ou incorrect.\n\n👉 Veuillez renvoyer un **autre numéro de téléphone** pour recevoir votre paiement :",
         "code_refused": "❌ **Code invalide ou déjà utilisé.** Veuillez réessayer.",
         "completer_demande": "⚠️ **RECHARGE INCOMPLÈTE !** ⚠️\n\nL'administrateur signale qu'il manque un ou plusieurs codes pour votre recharge **{produit}**.\n\n👉 Veuillez répondre ci-dessous en envoyant les codes ou photos manquants :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "retrait_insuffisant": "❌ **Solde insuffisant.** Le montant minimum pour effectuer un retrait est de {min_retrait:,} XOF.",
@@ -148,6 +150,8 @@ TEXTS = {
         "select_payment_method": "📲 **SELECT PAYMENT METHOD**\n\nYour top-up is validated! Please select how you want to receive your payment ({montant:,} XOF):",
         "ask_phone_number": "📱 Please enter your **{methode}** phone number below to receive payment:",
         "phone_received": "✅ Number received! The administrator is processing your payment...",
+        "payment_sent": "💸 **PAYMENT SENT!** 💸\n\nYour payment of **{montant:,} XOF** was sent successfully to your **{methode}** account ({numero}). Thank you for your trust!",
+        "phone_unreachable": "⚠️ **UNREACHABLE OR INVALID NUMBER** ⚠️\n\nThe administrator reported that your number **{numero}** is unreachable or incorrect.\n\n👉 Please send a **different phone number** to receive your payment:",
         "code_refused": "❌ **Invalid code or already used.** Please try again.",
         "completer_demande": "⚠️ **INCOMPLETE TOP-UP!** ⚠️\n\nThe administrator reported missing code(s) for your **{produit}** recharge.\n\n👉 Please reply below with the missing code(s) or photo(s):\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "retrait_insuffisant": "❌ **Insufficient balance.** The minimum withdrawal amount is {min_retrait:,} XOF.",
@@ -632,7 +636,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         conn = get_db()
         cursor = conn.cursor()
         cursor.execute("UPDATE transactions SET methode_paiement = ?, numero_paiement = ? WHERE id = ?", (methode, texte, tx_id))
-        cursor.execute("SELECT montant_crypto, produit FROM transactions WHERE id = ?", (tx_id,))
+        cursor.execute("SELECT montant_crypto FROM transactions WHERE id = ?", (tx_id,))
         row = cursor.fetchone()
         montant_crypto = row[0] if row else 0
         conn.commit()
@@ -640,9 +644,10 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
         await update.message.reply_text(t["phone_received"])
 
-        # Notification à l'admin avec le bouton pour envoyer l'option de payer au client
+        # Notifications avec actions pour l'admin (Paiement effectué OU Numéro inatteignable)
         keyboard = [
-            [InlineKeyboardButton("📲 Envoyer Option de Payer au Client", callback_data=f"admin_sendpayoption_{tx_id}")]
+            [InlineKeyboardButton("✅ Valider & Confirmer Paiement", callback_data=f"admin_payconfirm_{tx_id}")],
+            [InlineKeyboardButton("📞 Numéro inatteignable (Demander autre)", callback_data=f"admin_payunreachable_{tx_id}")]
         ]
         await context.bot.send_message(
             chat_id=ADMIN_CHAT_ID,
@@ -776,48 +781,61 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                 parse_mode="Markdown"
             )
 
-    elif action == "sendpayoption":
+    elif action == "payconfirm":
         tx_id = int(data[2])
-        cursor.execute("SELECT user_id, mehtode_paiement, numero_paiement, montant_crypto FROM transactions WHERE id = ?", (tx_id,))
-        tx = cursor.fetchone()
-        
-        # Secours si le champ methode est vide
         cursor.execute("SELECT user_id, montant_crypto, methode_paiement, numero_paiement FROM transactions WHERE id = ?", (tx_id,))
         tx = cursor.fetchone()
-        
+
         if tx:
             client_id, montant, methode, numero = tx[0], tx[1], tx[2], tx[3]
             client_lang = get_user_lang(client_id)
             t_client = TEXTS[client_lang]
 
             if query.message.caption:
-                await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ **OPTION DE PAIEMENT ENVOYÉE AU CLIENT**")
+                await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ **CONFIRMATION DE PAIEMENT ENVOYÉE AU CLIENT**")
             else:
-                await query.edit_message_text(f"{query.message.text}\n\n✅ **OPTION DE PAIEMENT ENVOYÉE AU CLIENT**")
+                await query.edit_message_text(f"{query.message.text}\n\n✅ **CONFIRMATION DE PAIEMENT ENVOYÉE AU CLIENT**")
 
-            # Bouton de paiement envoyé au client selon l'opérateur
-            if methode == "Wave":
-                payment_url = f"https://wave.com/send?phone={numero}"
-                pay_btn_keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🌊 Payer via Wave", url=payment_url)]
-                ])
-                txt_payment = f"💳 **OPTION DE PAIEMENT GENEREE**\n\nVotre paiement de **{montant:,} XOF** est prêt sur votre compte Wave (`{numero}`). Cliquez sur le bouton ci-dessous pour effectuer le paiement directement :"
-            else:
-                pay_btn_keyboard = None
-                txt_payment = f"💳 **OPTION DE PAIEMENT GENEREE**\n\nUn transfert Orange Money de **{montant:,} XOF** a été envoyé à votre numéro `{numero}`.\n\nCode USSD rapide : `#144#` pour valider ou vérifier la réception."
-
+            # Information du paiement au client
+            txt_sent = t_client["payment_sent"].format(montant=montant, methode=methode, numero=numero)
             await context.bot.send_message(
                 chat_id=client_id,
-                text=txt_payment,
-                reply_markup=pay_btn_keyboard,
+                text=txt_sent,
                 parse_mode="Markdown"
             )
 
-            # Évaluation après réception
+            # Évaluation après confirmation du paiement
             await context.bot.send_message(
                 chat_id=client_id,
                 text=t_client["rate_prompt"],
                 reply_markup=rating_keyboard(tx_id),
+                parse_mode="Markdown"
+            )
+
+    elif action == "payunreachable":
+        tx_id = int(data[2])
+        cursor.execute("SELECT user_id, methode_paiement, numero_paiement FROM transactions WHERE id = ?", (tx_id,))
+        tx = cursor.fetchone()
+
+        if tx:
+            client_id, methode, numero = tx[0], tx[1], tx[2]
+            client_lang = get_user_lang(client_id)
+            t_client = TEXTS[client_lang]
+
+            # Remettre le client en attente de numéro
+            context.application.user_data[client_id]["etape"] = "ATTENTE_NUMERO_PAIEMENT"
+            context.application.user_data[client_id]["methode_paiement"] = methode
+            context.application.user_data[client_id]["tx_id_paiement"] = tx_id
+
+            if query.message.caption:
+                await query.edit_message_caption(caption=f"{query.message.caption}\n\n📞 **NOTIFICATION NUMÉRO INATTEIGNABLE ENVOYÉE**")
+            else:
+                await query.edit_message_text(f"{query.message.text}\n\n📞 **NOTIFICATION NUMÉRO INATTEIGNABLE ENVOYÉE**")
+
+            txt_unreachable = t_client["phone_unreachable"].format(numero=numero)
+            await context.bot.send_message(
+                chat_id=client_id,
+                text=txt_unreachable,
                 parse_mode="Markdown"
             )
 
