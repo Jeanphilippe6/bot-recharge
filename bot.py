@@ -99,6 +99,8 @@ TEXTS = {
         "welcome": "Bienvenue {name} ! 👋\nPlateforme professionnelle d'échange.",
         "pcs": "💳 PCS",
         "transcash": "💳 Transcash",
+        "cryptonow": "🪙 Cryptonow",
+        "paysafecard": "🔒 Paysafecard",
         "solde": "💼 Mon Solde & Retrait",
         "history": "📜 Mes Transactions",
         "parrainage": "👥 Parrainage (+125 XOF)",
@@ -133,6 +135,8 @@ TEXTS = {
         "welcome": "Welcome {name}! 👋\nProfessional gift card exchange platform.",
         "pcs": "💳 PCS Card",
         "transcash": "💳 Transcash",
+        "cryptonow": "🪙 Cryptonow",
+        "paysafecard": "🔒 Paysafecard",
         "solde": "💼 My Balance & Withdrawal",
         "history": "📜 My Transactions",
         "parrainage": "👥 Referral (+125 XOF)",
@@ -183,19 +187,20 @@ GRILLES_TARIFS = {
         250: 148000,
         500: 300000,
     },
-  "Cryptonow": { 
-      20: 8000,
-      50: 24000,
-      100: 54000,
-      150: 83000,
-      200: 110000,
-      250: 143000,
-      500: 285000,
-   },
-  "Paysafecard": { 
-      20: 6000,
-      50: 20000,
-      100: 45000,
+    "Cryptonow": {
+        20: 8000,
+        50: 24000,
+        100: 54000,
+        150: 83000,
+        200: 110000,
+        250: 143000,
+        500: 285000,
+    },
+    "Paysafecard": {
+        20: 6000,
+        50: 20000,
+        100: 45000,
+    }
 }
 
 logging.basicConfig(
@@ -215,6 +220,7 @@ def client_keyboard(lang):
     t = TEXTS[lang]
     keyboard = [
         [InlineKeyboardButton(t["pcs"], callback_data="prod_PCS"), InlineKeyboardButton(t["transcash"], callback_data="prod_Transcash")],
+        [InlineKeyboardButton(t["cryptonow"], callback_data="prod_Cryptonow"), InlineKeyboardButton(t["paysafecard"], callback_data="prod_Paysafecard")],
         [InlineKeyboardButton(t["solde"], callback_data="menu_solde"), InlineKeyboardButton(t["history"], callback_data="menu_history")],
         [InlineKeyboardButton(t["parrainage"], callback_data="menu_parrainage"), InlineKeyboardButton(t["lang"], callback_data="menu_lang")]
     ]
