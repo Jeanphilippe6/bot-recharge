@@ -91,18 +91,15 @@ def get_db():
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "TON_TOKEN_ICI")
 ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", 0))
 
-# Votre numéro WhatsApp configuré au format international (sans +)
 NUMERO_WHATSAPP = "2250173467331"
-
 BONUS_PARRAINAGE = 125
 SEUIL_MIN_RETRAIT = 2000
-TIMEOUT_SESSION = 600  # 10 minutes en secondes (600s)
+TIMEOUT_SESSION = 600  # 10 minutes (600s)
 
 # ---------------------------------------------------------
 # VÉRIFICATION DES HORAIRES (07H30 - 20H30 GMT)
 # ---------------------------------------------------------
 def est_ouvert():
-    # Heure locale de Côte d'Ivoire (Africa/Abidjan = GMT)
     maintenant = datetime.now(zoneinfo.ZoneInfo("Africa/Abidjan")).time()
     debut = datetime.strptime("07:30", "%H:%M").time()
     fin = datetime.strptime("20:30", "%H:%M").time()
@@ -188,38 +185,10 @@ TEXTS = {
 }
 
 GRILLES_TARIFS = {
-    "PCS": {
-        20: 7000,
-        50: 24000,
-        100: 54000,
-        150: 84000,
-        200: 110000,
-        250: 144000,
-    },
-    "Transcash": {
-        20: 8000,
-        50: 30000,
-        100: 60000,
-        150: 90000,
-        200: 120000,
-        250: 150000,
-        500: 300000,
-    },
-    "Cryptonow": {
-        20: 7000,
-        50: 24000,
-        100: 54000,
-        150: 84000,
-        200: 110000,
-        250: 144000,
-        500: 285000,
-    },
-    "Paysafecard": {
-        10: 3000,
-        20: 6000,
-        50: 21000,
-        100: 46000,
-    }
+    "PCS": {20: 7000, 50: 24000, 100: 54000, 150: 84000, 200: 110000, 250: 144000},
+    "Transcash": {20: 8000, 50: 30000, 100: 60000, 150: 90000, 200: 120000, 250: 150000, 500: 300000},
+    "Cryptonow": {20: 7000, 50: 24000, 100: 54000, 150: 84000, 200: 110000, 250: 144000, 500: 285000},
+    "Paysafecard": {10: 3000, 20: 6000, 50: 21000, 100: 46000}
 }
 
 logging.basicConfig(
@@ -252,7 +221,7 @@ def rating_keyboard(tx_id):
     return InlineKeyboardMarkup(keyboard)
 
 # ---------------------------------------------------------
-# FONCTION DU COMPTE À REBOURS EN DIRECT
+# COMPTE À REBOURS
 # ---------------------------------------------------------
 async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int, text_template: str, kwargs: dict):
     if "timer_task" in context.user_data and context.user_data["timer_task"]:
@@ -295,16 +264,36 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
     context.user_data["timer_task"] = asyncio.create_task(_timer())
 
 # ---------------------------------------------------------
+# MIDDLEWARE HORAIRES (INTERCEPTEUR GLOBAL)
+# ---------------------------------------------------------
+async def filtrer_horaires_global(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if not user:
+        return
+
+    # L'administrateur n'est pas soumis aux horaires
+    if user.id == ADMIN_CHAT_ID:
+        return
+
+    # Si le bot est fermé, on stoppe toute interaction
+    if not est_ouvert():
+        lang = get_user_lang(user.id)
+        msg_ferme = TEXTS[lang]["closed_message"]
+
+        if update.callback_query:
+            await update.callback_query.answer()
+            await update.callback_query.message.reply_text(msg_ferme, parse_mode="Markdown")
+        elif update.message:
+            await update.message.reply_text(msg_ferme, parse_mode="Markdown")
+
+        # Arrête la propagation vers tous les autres handlers
+        context.application.stop_running()
+
+# ---------------------------------------------------------
 # COMMANDES CLIENT & ADMIN
 # ---------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-
-    # Vérification des heures d'ouverture pour les clients (L'admin n'est pas restreint)
-    if user.id != ADMIN_CHAT_ID and not est_ouvert():
-        lang = get_user_lang(user.id)
-        await update.message.reply_text(TEXTS[lang]["closed_message"], parse_mode="Markdown")
-        return
 
     if "timer_task" in context.user_data and context.user_data["timer_task"]:
         context.user_data["timer_task"].cancel()
@@ -356,12 +345,6 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
     user = update.effective_user
-
-    # Vérification des heures d'ouverture pour les clients
-    if user.id != ADMIN_CHAT_ID and not est_ouvert():
-        lang = get_user_lang(user.id)
-        await query.message.reply_text(TEXTS[lang]["closed_message"], parse_mode="Markdown")
-        return
 
     lang = get_user_lang(user.id)
     t = TEXTS[lang]
@@ -517,7 +500,7 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.close()
 
 # ---------------------------------------------------------
-# TRAITEMENT DU CONTENU (TEXTE & PHOTO DU CLIENT OU ADMIN)
+# TRAITEMENT DES MESSAGES ET TRANSACTIONS
 # ---------------------------------------------------------
 async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE, code_text: str, photo_file_id: str = None):
     user = update.effective_user
@@ -568,7 +551,6 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
 
     await update.message.reply_text(t["code_received"])
 
-    # BOUTONS ADMINS
     keyboard = [
         [
             InlineKeyboardButton("✅ Valider Code", callback_data=f"admin_valide_{tx_id}"),
@@ -614,7 +596,6 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     texte = update.message.text.strip() if update.message.text else ""
 
-    # Message Admin Texte -> Client
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_dest_id"):
         dest_id = context.user_data.pop("admin_dest_id")
         try:
@@ -626,12 +607,6 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text("✅ **Message texte envoyé avec succès au client !**")
         except Exception as e:
             await update.message.reply_text(f"❌ Impossible d'envoyer le message : {e}")
-        return
-
-    # Vérification des heures d'ouverture pour les clients
-    if user.id != ADMIN_CHAT_ID and not est_ouvert():
-        lang = get_user_lang(user.id)
-        await update.message.reply_text(TEXTS[lang]["closed_message"], parse_mode="Markdown")
         return
 
     etape = context.user_data.get("etape")
@@ -704,7 +679,6 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
         await update.message.reply_text(t["phone_received"])
 
-        # Notifications avec actions pour l'admin (Paiement effectué OU Numéro inatteignable)
         keyboard = [
             [InlineKeyboardButton("✅ Valider & Confirmer Paiement", callback_data=f"admin_payconfirm_{tx_id}")],
             [InlineKeyboardButton("📞 Numéro inatteignable (Demander autre)", callback_data=f"admin_payunreachable_{tx_id}")]
@@ -746,10 +720,9 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    photo = update.message.photo[-1]  # Meilleure résolution
+    photo = update.message.photo[-1]
     caption = update.message.caption or ""
 
-    # Mode Envoi de Photo par Admin au Client
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_dest_photo_id"):
         dest_id = context.user_data.pop("admin_dest_photo_id")
         try:
@@ -765,19 +738,12 @@ async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ Impossible d'envoyer la photo : {e}")
         return
 
-    # Vérification des heures d'ouverture pour les clients
-    if user.id != ADMIN_CHAT_ID and not est_ouvert():
-        lang = get_user_lang(user.id)
-        await update.message.reply_text(TEXTS[lang]["closed_message"], parse_mode="Markdown")
-        return
-
-    # Client envoyant une photo
     etape = context.user_data.get("etape")
     if etape in ["ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
         await enregistrer_et_envoyer_transaction(update, context, code_text=caption, photo_file_id=photo.file_id)
 
 # ---------------------------------------------------------
-# VALIDATION ADMIN & ACTIONS COMPLÉMENTAIRES
+# ACTIONS ADMINISTRATEUR
 # ---------------------------------------------------------
 async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -823,7 +789,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             else:
                 await query.edit_message_text(f"{query.message.text}\n\n✅ **CODE VALIDÉ PAR L'ADMIN**")
 
-            # ANIMATION EMOJIS
             msg_anim = await context.bot.send_message(chat_id=client_id, text="✨ 🟢 ⏳ Payment Validation...")
             await asyncio.sleep(0.7)
             await msg_anim.edit_text("🎉 🥳 💫 <b>PAYMENT CONFIRMED !</b>", parse_mode="HTML")
@@ -833,7 +798,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             msg_success = t_client["success_recharge"].format(produit=produit)
             await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
 
-            # DEMANDE DE SÉLECTION DU MODE DE PAIEMENT (WAVE OU ORANGE MONEY)
             pay_keyboard = [
                 [
                     InlineKeyboardButton("🌊 Wave", callback_data=f"paymethod_Wave_{tx_id}"),
@@ -862,7 +826,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             else:
                 await query.edit_message_text(f"{query.message.text}\n\n✅ **CONFIRMATION DE PAIEMENT ENVOYÉE AU CLIENT**")
 
-            # Information du paiement au client
             txt_sent = t_client["payment_sent"].format(montant=montant, methode=methode, numero=numero)
             await context.bot.send_message(
                 chat_id=client_id,
@@ -870,7 +833,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                 parse_mode="Markdown"
             )
 
-            # Évaluation après confirmation du paiement
             await context.bot.send_message(
                 chat_id=client_id,
                 text=t_client["rate_prompt"],
@@ -888,7 +850,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             client_lang = get_user_lang(client_id)
             t_client = TEXTS[client_lang]
 
-            # Remettre le client en attente de numéro
             context.application.user_data[client_id]["etape"] = "ATTENTE_NUMERO_PAIEMENT"
             context.application.user_data[client_id]["methode_paiement"] = methode
             context.application.user_data[client_id]["tx_id_paiement"] = tx_id
@@ -979,12 +940,16 @@ def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
+    # LE FILTRE GLOBAL DES HORAIRES (GROUPE -1 : prioritaire sur TOUTES les commandes/actions)
+    app.add_handler(MessageHandler(filters.ALL, filtrer_horaires_global), group=-1)
+    app.add_handler(CallbackQueryHandler(filtrer_horaires_global), group=-1)
+
+    # HANDLERS CLASSIQUES (GROUPE 0)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("liquidite", admin_set_liquidite))
     app.add_handler(CallbackQueryHandler(gerer_actions_admin, pattern="^admin_"))
     app.add_handler(CallbackQueryHandler(gerer_callbacks))
     
-    # Handlers Texte & Photo
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, gerer_messages_texte))
     app.add_handler(MessageHandler(filters.PHOTO, gerer_photos))
 
@@ -995,4 +960,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
