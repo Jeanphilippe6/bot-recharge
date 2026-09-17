@@ -8,6 +8,7 @@ import re
 import sqlite3
 import threading
 import time
+import zoneinfo
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -97,6 +98,16 @@ BONUS_PARRAINAGE = 125
 SEUIL_MIN_RETRAIT = 2000
 TIMEOUT_SESSION = 600  # 10 minutes en secondes (600s)
 
+# ---------------------------------------------------------
+# VÉRIFICATION DES HORAIRES (07H30 - 18H30 GMT)
+# ---------------------------------------------------------
+def est_ouvert():
+    # Heure locale de Côte d'Ivoire (Africa/Abidjan = GMT)
+    maintenant = datetime.now(zoneinfo.ZoneInfo("Africa/Abidjan")).time()
+    debut = datetime.strptime("07:30", "%H:%M").time()
+    fin = datetime.strptime("18:30", "%H:%M").time()
+    return debut <= maintenant <= fin
+
 TEXTS = {
     "fr": {
         "welcome": "Bienvenue {name} ! 👋\nPlateforme professionnelle d'échange.",
@@ -133,6 +144,7 @@ TEXTS = {
         "liquidite_insuffisante": "⚠️ **TRANSACTION IMPOSSIBLE** ⚠️\n\nLa liquidité disponible actuellement ({liq:,} XOF) est insuffisante pour traiter cette transaction de {montant:,} XOF. Veuillez réessayer plus tard ou choisir un montant inférieur.",
         "qty_invalid": "❌ **Saisie invalide.** Veuillez taper un nombre entier.",
         "session_expired": "⏱ **SESSION EXPIRÉE !** ⚠️\n\nLe délai de 10 minutes est écoulé. La session a été fermée.\n\nVeuillez relancer une nouvelle demande dans le menu.",
+        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 18h30** (Heure de Côte d'Ivoire / GMT).\n\nMerci de revenir pendant les heures de service !",
         "back": "🔙 Retour"
     },
     "en": {
@@ -170,6 +182,7 @@ TEXTS = {
         "liquidite_insuffisante": "⚠️ **TRANSACTION NOT POSSIBLE** ⚠️\n\nThe current available liquidity ({liq:,} XOF) is insufficient to process this transaction of {montant:,} XOF. Please try again later or select a smaller amount.",
         "qty_invalid": "❌ **Invalid input.** Please type a valid number.",
         "session_expired": "⏱ **SESSION EXPIRED!** ⚠️\n\n10 minutes have passed without activity. Your session has been closed.\n\nPlease start a new request from the main menu.",
+        "closed_message": "🔴 **SERVICE CLOSED** 🔴\n\nOur service is currently closed.\n\n⏰ **Opening Hours:**\n**Monday to Sunday** from **07:30 AM to 06:30 PM** (GMT / Ivory Coast time).\n\nPlease come back during operating hours!",
         "back": "🔙 Back"
     }
 }
@@ -286,6 +299,13 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
 # ---------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+
+    # Vérification des heures d'ouverture pour les clients (L'admin n'est pas restreint)
+    if user.id != ADMIN_CHAT_ID and not est_ouvert():
+        lang = get_user_lang(user.id)
+        await update.message.reply_text(TEXTS[lang]["closed_message"], parse_mode="Markdown")
+        return
+
     if "timer_task" in context.user_data and context.user_data["timer_task"]:
         context.user_data["timer_task"].cancel()
     context.user_data["etape"] = None
@@ -336,6 +356,13 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
     user = update.effective_user
+
+    # Vérification des heures d'ouverture pour les clients
+    if user.id != ADMIN_CHAT_ID and not est_ouvert():
+        lang = get_user_lang(user.id)
+        await query.message.reply_text(TEXTS[lang]["closed_message"], parse_mode="Markdown")
+        return
+
     lang = get_user_lang(user.id)
     t = TEXTS[lang]
 
@@ -586,7 +613,7 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
 async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     texte = update.message.text.strip() if update.message.text else ""
-    
+
     # Message Admin Texte -> Client
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_dest_id"):
         dest_id = context.user_data.pop("admin_dest_id")
@@ -599,6 +626,12 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text("✅ **Message texte envoyé avec succès au client !**")
         except Exception as e:
             await update.message.reply_text(f"❌ Impossible d'envoyer le message : {e}")
+        return
+
+    # Vérification des heures d'ouverture pour les clients
+    if user.id != ADMIN_CHAT_ID and not est_ouvert():
+        lang = get_user_lang(user.id)
+        await update.message.reply_text(TEXTS[lang]["closed_message"], parse_mode="Markdown")
         return
 
     etape = context.user_data.get("etape")
@@ -730,6 +763,12 @@ async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("✅ **Photo envoyée avec succès au client !**")
         except Exception as e:
             await update.message.reply_text(f"❌ Impossible d'envoyer la photo : {e}")
+        return
+
+    # Vérification des heures d'ouverture pour les clients
+    if user.id != ADMIN_CHAT_ID and not est_ouvert():
+        lang = get_user_lang(user.id)
+        await update.message.reply_text(TEXTS[lang]["closed_message"], parse_mode="Markdown")
         return
 
     # Client envoyant une photo
