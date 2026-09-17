@@ -99,13 +99,13 @@ SEUIL_MIN_RETRAIT = 2000
 TIMEOUT_SESSION = 600  # 10 minutes en secondes (600s)
 
 # ---------------------------------------------------------
-# VÉRIFICATION DES HORAIRES (07H30 - 18H30 GMT)
+# VÉRIFICATION DES HORAIRES (07H30 - 20H30 GMT)
 # ---------------------------------------------------------
 def est_ouvert():
     # Heure locale de Côte d'Ivoire (Africa/Abidjan = GMT)
     maintenant = datetime.now(zoneinfo.ZoneInfo("Africa/Abidjan")).time()
     debut = datetime.strptime("07:30", "%H:%M").time()
-    fin = datetime.strptime("18:30", "%H:%M").time()
+    fin = datetime.strptime("20:30", "%H:%M").time()
     return debut <= maintenant <= fin
 
 TEXTS = {
@@ -144,7 +144,7 @@ TEXTS = {
         "liquidite_insuffisante": "⚠️ **TRANSACTION IMPOSSIBLE** ⚠️\n\nLa liquidité disponible actuellement ({liq:,} XOF) est insuffisante pour traiter cette transaction de {montant:,} XOF. Veuillez réessayer plus tard ou choisir un montant inférieur.",
         "qty_invalid": "❌ **Saisie invalide.** Veuillez taper un nombre entier.",
         "session_expired": "⏱ **SESSION EXPIRÉE !** ⚠️\n\nLe délai de 10 minutes est écoulé. La session a été fermée.\n\nVeuillez relancer une nouvelle demande dans le menu.",
-        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 18h30** (Heure de Côte d'Ivoire / GMT).\n\nMerci de revenir pendant les heures de service !",
+        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 20h30** (Heure de Côte d'Ivoire / GMT).\n\nMerci de revenir pendant les heures de service !",
         "back": "🔙 Retour"
     },
     "en": {
@@ -182,7 +182,7 @@ TEXTS = {
         "liquidite_insuffisante": "⚠️ **TRANSACTION NOT POSSIBLE** ⚠️\n\nThe current available liquidity ({liq:,} XOF) is insufficient to process this transaction of {montant:,} XOF. Please try again later or select a smaller amount.",
         "qty_invalid": "❌ **Invalid input.** Please type a valid number.",
         "session_expired": "⏱ **SESSION EXPIRED!** ⚠️\n\n10 minutes have passed without activity. Your session has been closed.\n\nPlease start a new request from the main menu.",
-        "closed_message": "🔴 **SERVICE CLOSED** 🔴\n\nOur service is currently closed.\n\n⏰ **Opening Hours:**\n**Monday to Sunday** from **07:30 AM to 06:30 PM** (GMT / Ivory Coast time).\n\nPlease come back during operating hours!",
+        "closed_message": "🔴 **SERVICE CLOSED** 🔴\n\nOur service is currently closed.\n\n⏰ **Opening Hours:**\n**Monday to Sunday** from **07:30 AM to 08:30 PM** (GMT / Ivory Coast time).\n\nPlease come back during operating hours!",
         "back": "🔙 Back"
     }
 }
@@ -995,3 +995,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
