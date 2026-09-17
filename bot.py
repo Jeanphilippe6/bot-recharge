@@ -7,13 +7,11 @@ import os
 import re
 import sqlite3
 import threading
-import time
 import zoneinfo
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
-    ApplicationHandlerStop,  # Bloque proprement les traitements suivants
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
@@ -98,13 +96,41 @@ SEUIL_MIN_RETRAIT = 2000
 TIMEOUT_SESSION = 600  # 10 minutes (600s)
 
 # ---------------------------------------------------------
-# VÉRIFICATION DES HORAIRES (07H30 - 20H30 GMT)
+# VÉRIFICATION STRICTE DES HORAIRES (07H30 - 20H30 GMT)
 # ---------------------------------------------------------
 def est_ouvert():
     maintenant = datetime.now(zoneinfo.ZoneInfo("Africa/Abidjan")).time()
     debut = datetime.strptime("07:30", "%H:%M").time()
     fin = datetime.strptime("20:30", "%H:%M").time()
     return debut <= maintenant <= fin
+
+async def verifier_horaires_et_bloquer(update: Update) -> bool:
+    """Renvoie True si le bot est FERMÉ (et envoie le message de fermeture), sinon False."""
+    user = update.effective_user
+    if not user:
+        return False
+
+    # L'administrateur n'est PAS bloqué
+    if user.id == ADMIN_CHAT_ID:
+        return False
+
+    # Si nous sommes hors des heures d'ouverture
+    if not est_ouvert():
+        lang = get_user_lang(user.id)
+        msg_ferme = TEXTS[lang]["closed_message"]
+
+        if update.callback_query:
+            try:
+                await update.callback_query.answer()
+            except Exception:
+                pass
+            await update.callback_query.message.reply_text(msg_ferme, parse_mode="Markdown")
+        elif update.message:
+            await update.message.reply_text(msg_ferme, parse_mode="Markdown")
+
+        return True  # Bloqué !
+
+    return False  # Ouvert !
 
 TEXTS = {
     "fr": {
@@ -265,35 +291,13 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
     context.user_data["timer_task"] = asyncio.create_task(_timer())
 
 # ---------------------------------------------------------
-# MIDDLEWARE HORAIRES (INTERCEPTEUR GLOBAL)
-# ---------------------------------------------------------
-async def filtrer_horaires_global(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    if not user:
-        return
-
-    # L'administrateur peut toujours utiliser le bot
-    if user.id == ADMIN_CHAT_ID:
-        return
-
-    # Si le bot est fermé
-    if not est_ouvert():
-        lang = get_user_lang(user.id)
-        msg_ferme = TEXTS[lang]["closed_message"]
-
-        if update.callback_query:
-            await update.callback_query.answer()
-            await update.callback_query.message.reply_text(msg_ferme, parse_mode="Markdown")
-        elif update.message:
-            await update.message.reply_text(msg_ferme, parse_mode="Markdown")
-
-        # BLOQUE STRICTEMENT l'exécution de tout autre handler
-        raise ApplicationHandlerStop
-
-# ---------------------------------------------------------
 # COMMANDES CLIENT & ADMIN
 # ---------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # BLOCAGE HORAIRE DIRECT
+    if await verifier_horaires_et_bloquer(update):
+        return
+
     user = update.effective_user
 
     if "timer_task" in context.user_data and context.user_data["timer_task"]:
@@ -342,8 +346,11 @@ async def admin_set_liquidite(update: Update, context: ContextTypes.DEFAULT_TYPE
 # CALLBACKS CLIENT & ADMIN
 # ---------------------------------------------------------
 async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # BLOCAGE HORAIRE DIRECT
+    if await verifier_horaires_et_bloquer(update):
+        return
+
     query = update.callback_query
-    await query.answer()
     data = query.data
     user = update.effective_user
 
@@ -594,6 +601,10 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
         )
 
 async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # BLOCAGE HORAIRE DIRECT
+    if await verifier_horaires_et_bloquer(update):
+        return
+
     user = update.effective_user
     texte = update.message.text.strip() if update.message.text else ""
 
@@ -720,6 +731,10 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # BLOCAGE HORAIRE DIRECT
+    if await verifier_horaires_et_bloquer(update):
+        return
+
     user = update.effective_user
     photo = update.message.photo[-1]
     caption = update.message.caption or ""
@@ -903,7 +918,7 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await query.edit_message_caption(caption=f"{query.message.caption}\n\n⚠️ **DEMANDE DE COMPLÉMENT ENVOYÉE AU CLIENT**")
             else:
                 await query.edit_message_text(f"{query.message.text}\n\n⚠️ **DEMANDE DE COMPLÉMENT ENVOYÉE AU CLIENT**")
-            
+
             msg = await context.bot.send_message(
                 chat_id=client_id,
                 text=t_client["completer_demande"].format(produit=produit, m=10, s=0),
@@ -941,11 +956,7 @@ def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # FILTRE GLOBAL DES HORAIRES (GROUPE -1 : prioritaire sur TOUT le reste)
-    app.add_handler(MessageHandler(filters.ALL, filtrer_horaires_global), group=-1)
-    app.add_handler(CallbackQueryHandler(filtrer_horaires_global), group=-1)
-
-    # HANDLERS CLASSIQUES (GROUPE 0)
+    # HANDLERS CLASSIQUES
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("liquidite", admin_set_liquidite))
     app.add_handler(CallbackQueryHandler(gerer_actions_admin, pattern="^admin_"))
@@ -961,3 +972,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
