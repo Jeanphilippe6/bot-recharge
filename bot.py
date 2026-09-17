@@ -13,6 +13,7 @@ import zoneinfo
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
+    ApplicationHandlerStop,  # Bloque proprement les traitements suivants
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
@@ -179,7 +180,7 @@ TEXTS = {
         "liquidite_insuffisante": "⚠️ **TRANSACTION NOT POSSIBLE** ⚠️\n\nThe current available liquidity ({liq:,} XOF) is insufficient to process this transaction of {montant:,} XOF. Please try again later or select a smaller amount.",
         "qty_invalid": "❌ **Invalid input.** Please type a valid number.",
         "session_expired": "⏱ **SESSION EXPIRED!** ⚠️\n\n10 minutes have passed without activity. Your session has been closed.\n\nPlease start a new request from the main menu.",
-        "closed_message": "🔴 **SERVICE CLOSED** 🔴\n\nOur service is currently closed.\n\n⏰ **Opening Hours:**\n**Monday to Sunday** from **07:30 AM to 08:30 PM** (GMT / Ivory Coast time).\n\nPlease come back during operating hours!",
+        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 20h30** (Heure de Côte d'Ivoire / GMT).\n\nMerci de revenir pendant les heures de service !",
         "back": "🔙 Back"
     }
 }
@@ -271,11 +272,11 @@ async def filtrer_horaires_global(update: Update, context: ContextTypes.DEFAULT_
     if not user:
         return
 
-    # L'administrateur n'est pas soumis aux horaires
+    # L'administrateur peut toujours utiliser le bot
     if user.id == ADMIN_CHAT_ID:
         return
 
-    # Si le bot est fermé, on stoppe toute interaction
+    # Si le bot est fermé
     if not est_ouvert():
         lang = get_user_lang(user.id)
         msg_ferme = TEXTS[lang]["closed_message"]
@@ -286,8 +287,8 @@ async def filtrer_horaires_global(update: Update, context: ContextTypes.DEFAULT_
         elif update.message:
             await update.message.reply_text(msg_ferme, parse_mode="Markdown")
 
-        # Arrête la propagation vers tous les autres handlers
-        context.application.stop_running()
+        # BLOQUE STRICTEMENT l'exécution de tout autre handler
+        raise ApplicationHandlerStop
 
 # ---------------------------------------------------------
 # COMMANDES CLIENT & ADMIN
@@ -940,7 +941,7 @@ def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # LE FILTRE GLOBAL DES HORAIRES (GROUPE -1 : prioritaire sur TOUTES les commandes/actions)
+    # FILTRE GLOBAL DES HORAIRES (GROUPE -1 : prioritaire sur TOUT le reste)
     app.add_handler(MessageHandler(filters.ALL, filtrer_horaires_global), group=-1)
     app.add_handler(CallbackQueryHandler(filtrer_horaires_global), group=-1)
 
