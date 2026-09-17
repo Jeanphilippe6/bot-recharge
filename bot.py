@@ -90,8 +90,8 @@ def get_db():
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "TON_TOKEN_ICI")
 ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", 0))
 
-# ⚠️ REMPLACE CE NUMÉRO PAR LE TIEN (Format international sans + ex: 2250700000000)
-NUMERO_WHATSAPP = "2250000000000"
+# Votre numéro WhatsApp configuré au format international (sans +)
+NUMERO_WHATSAPP = "2250173467331"
 
 BONUS_PARRAINAGE = 125
 SEUIL_MIN_RETRAIT = 2000
