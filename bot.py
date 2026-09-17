@@ -90,6 +90,9 @@ def get_db():
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "TON_TOKEN_ICI")
 ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", 0))
 
+# ⚠️ REMPLACE CE NUMÉRO PAR LE TIEN (Format international sans + ex: 2250700000000)
+NUMERO_WHATSAPP = "2250000000000"
+
 BONUS_PARRAINAGE = 125
 SEUIL_MIN_RETRAIT = 2000
 TIMEOUT_SESSION = 600  # 10 minutes en secondes (600s)
@@ -104,6 +107,7 @@ TEXTS = {
         "solde": "💼 Mon Solde & Retrait",
         "history": "📜 Mes Transactions",
         "parrainage": "👥 Parrainage (+125 XOF)",
+        "support": "💬 Support WhatsApp",
         "lang": "🌐 Langue / Language",
         "select_lang": "Choisissez votre langue :",
         "lang_updated": "✅ Langue mise à jour en Français !",
@@ -140,6 +144,7 @@ TEXTS = {
         "solde": "💼 My Balance & Withdrawal",
         "history": "📜 My Transactions",
         "parrainage": "👥 Referral (+125 XOF)",
+        "support": "💬 WhatsApp Support",
         "lang": "🌐 Language / Langue",
         "select_lang": "Select your language:",
         "lang_updated": "✅ Language updated to English!",
@@ -219,11 +224,13 @@ def get_user_lang(user_id):
 
 def client_keyboard(lang):
     t = TEXTS[lang]
+    whatsapp_url = f"https://wa.me/{NUMERO_WHATSAPP}"
     keyboard = [
         [InlineKeyboardButton(t["pcs"], callback_data="prod_PCS"), InlineKeyboardButton(t["transcash"], callback_data="prod_Transcash")],
         [InlineKeyboardButton(t["cryptonow"], callback_data="prod_Cryptonow"), InlineKeyboardButton(t["paysafecard"], callback_data="prod_Paysafecard")],
         [InlineKeyboardButton(t["solde"], callback_data="menu_solde"), InlineKeyboardButton(t["history"], callback_data="menu_history")],
-        [InlineKeyboardButton(t["parrainage"], callback_data="menu_parrainage"), InlineKeyboardButton(t["lang"], callback_data="menu_lang")]
+        [InlineKeyboardButton(t["parrainage"], callback_data="menu_parrainage"), InlineKeyboardButton(t["lang"], callback_data="menu_lang")],
+        [InlineKeyboardButton(t["support"], url=whatsapp_url)]
     ]
     return InlineKeyboardMarkup(keyboard)
 
