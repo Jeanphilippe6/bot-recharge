@@ -134,6 +134,7 @@ TEXTS = {
         "cryptonow": "🪙 Cryptonow",
         "paysafecard": "🔒 Paysafecard",
         "steam": "🎮 Steam Card",
+        "itunes": "🎵 iTunes Card",
         "solde": "💼 Mon Solde & Retrait",
         "history": "📜 Mes Transactions",
         "parrainage": "👥 Parrainage (+125 XOF)",
@@ -145,7 +146,7 @@ TEXTS = {
         "no_tx": "📜 Vous n'avez encore effectué aucune transaction.",
         "tx_title": "📜 **HISTORIQUE COMPLET DE VOS TRANSACTIONS :**\n\n",
         "ask_country": "🌍 **PAYS DE LA RECHARGE**\nDe quel pays provient votre recharge **Paysafecard** ?",
-        "ask_devise": "💱 **CHOIX DE LA DEVISE**\nQuelle est la devise de votre **Steam Card** ?",
+        "ask_devise": "💱 **CHOIX DE LA DEVISE**\nQuelle est la devise de votre **{produit}** ?",
         "ask_qty": "🔢 Combien de recharges **{produit}** de **{valeur}** avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2, 5...)_\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** (sous forme de texte ou de photo) ci-dessous :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous (texte ou photo) en précisant le montant.\n\n**Exemple de format texte :**\n<code>100 - ABCD1234EF\n50 - XYZ987654\n20 - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
@@ -176,6 +177,7 @@ TEXTS = {
         "cryptonow": "🪙 Cryptonow",
         "paysafecard": "🔒 Paysafecard",
         "steam": "🎮 Steam Card",
+        "itunes": "🎵 iTunes Card",
         "solde": "💼 My Balance & Withdrawal",
         "history": "📜 My Transactions",
         "parrainage": "👥 Referral (+125 XOF)",
@@ -187,7 +189,7 @@ TEXTS = {
         "no_tx": "📜 You haven't made any transactions yet.",
         "tx_title": "📜 **FULL TRANSACTION HISTORY:**\n\n",
         "ask_country": "🌍 **CARD COUNTRY**\nWhich country is your **Paysafecard** top-up card from?",
-        "ask_devise": "💱 **CURRENCY SELECTION**\nWhich currency is your **Steam Card** in?",
+        "ask_devise": "💱 **CURRENCY SELECTION**\nWhich currency is your **{produit}** in?",
         "ask_qty": "🔢 How many **{produit}** top-up cards of **{valeur}** do you have?\n\n_Please enter a number (e.g., 1, 2, 5...)_\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** (text or photo) below:\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below (text or photo), specifying the amount.\n\n**Example text format:**\n<code>100 - ABCD1234EF\n50 - XYZ987654\n20 - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
@@ -220,13 +222,21 @@ GRILLES_TARIFS = {
     "Paysafecard": {10: 3000, 20: 6000, 50: 21000, 100: 46000},
     "Steam Card (EUR)": {20: 6000, 25: 7000, 30: 10000, 50: 18000, 100: 38000},
     "Steam Card (USD)": {20: 5000, 30: 8000, 50: 16000, 100: 35000},
-    "Steam Card (CAD)": {20: 4000, 30: 6000, 50: 10000, 100: 21000}
+    "Steam Card (CAD)": {20: 4000, 30: 6000, 50: 10000, 100: 21000},
+    "iTunes Card (EUR)": {20: 6000, 25: 7000, 30: 8000, 50: 16000, 100: 35000},
+    "iTunes Card (USD)": {20: 5000, 30: 10000, 50: 18000, 100: 40000},
+    "iTunes Card (CAD)": {20: 4000, 30: 6000, 50: 10000, 100: 25000},
+    "iTunes Card (CHF)": {20: 6000, 25: 8000, 30: 10000, 50: 20000, 100: 43000, 150: 65000}
 }
 
 SYMBOLES_DEVISE = {
     "Steam Card (EUR)": "€",
     "Steam Card (USD)": "$",
-    "Steam Card (CAD)": "CAD$"
+    "Steam Card (CAD)": "CAD$",
+    "iTunes Card (EUR)": "€",
+    "iTunes Card (USD)": "$",
+    "iTunes Card (CAD)": "CAD$",
+    "iTunes Card (CHF)": "CHF"
 }
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -245,7 +255,7 @@ def client_keyboard(lang):
     keyboard = [
         [InlineKeyboardButton(t["pcs"], callback_data="prod_PCS"), InlineKeyboardButton(t["transcash"], callback_data="prod_Transcash")],
         [InlineKeyboardButton(t["cryptonow"], callback_data="prod_Cryptonow"), InlineKeyboardButton(t["paysafecard"], callback_data="prod_Paysafecard")],
-        [InlineKeyboardButton(t["steam"], callback_data="prod_Steam")],
+        [InlineKeyboardButton(t["steam"], callback_data="prod_Steam"), InlineKeyboardButton(t["itunes"], callback_data="prod_iTunes")],
         [InlineKeyboardButton(t["solde"], callback_data="menu_solde"), InlineKeyboardButton(t["history"], callback_data="menu_history")],
         [InlineKeyboardButton(t["parrainage"], callback_data="menu_parrainage"), InlineKeyboardButton(t["lang"], callback_data="menu_lang")],
         [InlineKeyboardButton(t["support"], url=whatsapp_url)]
@@ -260,7 +270,7 @@ def afficher_tarifs_produit(produit, info_complement=""):
     tarifs = GRILLES_TARIFS.get(produit, {})
     symbole = SYMBOLES_DEVISE.get(produit, "€")
     
-    keyboard = [[InlineKeyboardButton(f"{valeur}{symbole} ➡️ {xof:,} XOF", callback_data=f"montant_{valeur}_{xof}")] for valeur, xof in tarifs.items()]
+    keyboard = [[InlineKeyboardButton(f"{valeur} {symbole} ➡️ {xof:,} XOF", callback_data=f"montant_{valeur}_{xof}")] for valeur, xof in tarifs.items()]
     keyboard.append([InlineKeyboardButton("🔀 Montants multiples / Différents", callback_data="montant_mixte")])
     keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_main")])
     
@@ -474,7 +484,18 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton(t["back"], callback_data="menu_main")]
             ]
             await query.edit_message_text(
-                t["ask_devise"],
+                t["ask_devise"].format(produit="Steam Card"),
+                reply_markup=InlineKeyboardMarkup(keyboard_devise),
+                parse_mode="Markdown"
+            )
+        elif produit == "iTunes":
+            keyboard_devise = [
+                [InlineKeyboardButton("💶 EUR (€)", callback_data="itunes_devise_EUR"), InlineKeyboardButton("💵 USD ($)", callback_data="itunes_devise_USD")],
+                [InlineKeyboardButton("🇨🇦 CAD ($)", callback_data="itunes_devise_CAD"), InlineKeyboardButton("🇨🇭 CHF", callback_data="itunes_devise_CHF")],
+                [InlineKeyboardButton(t["back"], callback_data="menu_main")]
+            ]
+            await query.edit_message_text(
+                t["ask_devise"].format(produit="iTunes Card"),
                 reply_markup=InlineKeyboardMarkup(keyboard_devise),
                 parse_mode="Markdown"
             )
@@ -496,6 +517,14 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["produit"] = nom_produit_steam
 
         txt, reply_markup = afficher_tarifs_produit(nom_produit_steam)
+        await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
+
+    elif data.startswith("itunes_devise_"):
+        devise_code = data.split("_")[2]
+        nom_produit_itunes = f"iTunes Card ({devise_code})"
+        context.user_data["produit"] = nom_produit_itunes
+
+        txt, reply_markup = afficher_tarifs_produit(nom_produit_itunes)
         await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
 
     elif data == "montant_mixte":
@@ -522,7 +551,7 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         symbole = SYMBOLES_DEVISE.get(produit, "€")
         
         nom_produit_affiche = f"{produit} [{pays}]" if pays else produit
-        valeur_str = f"{montant_unitaire}{symbole}"
+        valeur_str = f"{montant_unitaire} {symbole}"
 
         await demarrer_compte_a_rebours(
             context, query.message.chat_id, query.message.message_id,
