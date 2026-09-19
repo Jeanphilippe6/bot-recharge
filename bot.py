@@ -110,11 +110,9 @@ async def verifier_horaires_et_bloquer(update: Update) -> bool:
     if not user:
         return False
 
-    # L'administrateur n'est PAS bloqué
     if user.id == ADMIN_CHAT_ID:
         return False
 
-    # Si nous sommes hors des heures d'ouverture
     if not est_ouvert():
         lang = get_user_lang(user.id)
         msg_ferme = TEXTS[lang]["closed_message"]
@@ -128,9 +126,9 @@ async def verifier_horaires_et_bloquer(update: Update) -> bool:
         elif update.message:
             await update.message.reply_text(msg_ferme, parse_mode="Markdown")
 
-        return True  # Bloqué !
+        return True
 
-    return False  # Ouvert !
+    return False
 
 TEXTS = {
     "fr": {
@@ -149,6 +147,7 @@ TEXTS = {
         "liquidite_disp": "💧 **Liquidité globale disponible :** {liq:,} XOF",
         "no_tx": "📜 Vous n'avez encore effectué aucune transaction.",
         "tx_title": "📜 **HISTORIQUE COMPLET DE VOS TRANSACTIONS :**\n\n",
+        "ask_country": "🌍 **PAYS DE LA RECHARGE**\nDe quel pays provient votre recharge **Paysafecard** ?",
         "ask_qty": "🔢 Combien de recharges **{produit}** de **{eur}€** avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2, 5...)_\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** (sous forme de texte ou de photo) ci-dessous :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous (texte ou photo) en précisant le montant.\n\n**Exemple de format texte :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
@@ -187,6 +186,7 @@ TEXTS = {
         "liquidite_disp": "💧 **Available Global Liquidity:** {liq:,} XOF",
         "no_tx": "📜 You haven't made any transactions yet.",
         "tx_title": "📜 **FULL TRANSACTION HISTORY:**\n\n",
+        "ask_country": "🌍 **CARD COUNTRY**\nWhich country is your **Paysafecard** top-up card from?",
         "ask_qty": "🔢 How many **{produit}** top-up cards of **{eur}€** do you have?\n\n_Please enter a number (e.g., 1, 2, 5...)_\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** (text or photo) below:\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below (text or photo), specifying the amount.\n\n**Example text format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
@@ -247,6 +247,16 @@ def rating_keyboard(tx_id):
     keyboard = [[InlineKeyboardButton(f"⭐ {i}", callback_data=f"rate_{tx_id}_{i}") for i in range(1, 8)]]
     return InlineKeyboardMarkup(keyboard)
 
+def afficher_tarifs_produit(produit, pays_info=""):
+    tarifs = GRILLES_TARIFS.get(produit, {})
+    keyboard = [[InlineKeyboardButton(f"{eur}€ ➡️ {xof:,} XOF", callback_data=f"montant_{eur}_{xof}")] for eur, xof in tarifs.items()]
+    keyboard.append([InlineKeyboardButton("🔀 Montants multiples / Différents", callback_data="montant_mixte")])
+    keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_main")])
+    
+    titre_pays = f" ({pays_info})" if pays_info else ""
+    texte = f"Service : <b>{html.escape(produit)}{titre_pays}</b>\n_Sélectionnez un montant fixe ou choisissez 'Montants multiples' si vous avez plusieurs coupons différents._"
+    return texte, InlineKeyboardMarkup(keyboard)
+
 # ---------------------------------------------------------
 # COMPTE À REBOURS
 # ---------------------------------------------------------
@@ -294,7 +304,6 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
 # COMMANDES CLIENT & ADMIN
 # ---------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # BLOCAGE HORAIRE DIRECT
     if await verifier_horaires_et_bloquer(update):
         return
 
@@ -346,7 +355,6 @@ async def admin_set_liquidite(update: Update, context: ContextTypes.DEFAULT_TYPE
 # CALLBACKS CLIENT & ADMIN
 # ---------------------------------------------------------
 async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # BLOCAGE HORAIRE DIRECT
     if await verifier_horaires_et_bloquer(update):
         return
 
@@ -443,17 +451,32 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("prod_"):
         produit = data.split("_")[1]
         context.user_data["produit"] = produit
-        tarifs = GRILLES_TARIFS.get(produit, {})
+        context.user_data["pays_paysafecard"] = None  # Réinitialise le pays si autre produit
 
-        keyboard = [[InlineKeyboardButton(f"{eur}€ ➡️ {xof:,} XOF", callback_data=f"montant_{eur}_{xof}")] for eur, xof in tarifs.items()]
-        keyboard.append([InlineKeyboardButton("🔀 Montants multiples / Différents", callback_data="montant_mixte")])
-        keyboard.append([InlineKeyboardButton(t["back"], callback_data="menu_main")])
+        # Si le client choisit Paysafecard, on demande d'abord le pays
+        if produit == "Paysafecard":
+            keyboard_pays = [
+                [InlineKeyboardButton("🇫🇷 France", callback_data="paysafecard_pays_France"), InlineKeyboardButton("🇨🇮 Côte d'Ivoire", callback_data="paysafecard_pays_Côte d'Ivoire")],
+                [InlineKeyboardButton("🇧🇪 Belgique", callback_data="paysafecard_pays_Belgique"), InlineKeyboardButton("🇨🇭 Suisse", callback_data="paysafecard_pays_Suisse")],
+                [InlineKeyboardButton("🇪🇸 Espagne", callback_data="paysafecard_pays_Espagne"), InlineKeyboardButton("🌍 Autre Pays", callback_data="paysafecard_pays_Autre")],
+                [InlineKeyboardButton(t["back"], callback_data="menu_main")]
+            ]
+            await query.edit_message_text(
+                t["ask_country"],
+                reply_markup=InlineKeyboardMarkup(keyboard_pays),
+                parse_mode="Markdown"
+            )
+        else:
+            txt, reply_markup = afficher_tarifs_produit(produit)
+            await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
 
-        await query.edit_message_text(
-            f"Service : <b>{html.escape(produit)}</b>\n_Sélectionnez un montant fixe ou choisissez 'Montants multiples' si vous avez plusieurs coupons différents._",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
+    elif data.startswith("paysafecard_pays_"):
+        pays = data.split("_")[2]
+        context.user_data["pays_paysafecard"] = pays
+        produit = context.user_data.get("produit", "Paysafecard")
+
+        txt, reply_markup = afficher_tarifs_produit(produit, pays_info=pays)
+        await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
 
     elif data == "montant_mixte":
         context.user_data["is_mixte"] = True
@@ -475,10 +498,12 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["etape"] = "ATTENTE_QUANTITE"
 
         produit = context.user_data.get("produit")
+        pays = context.user_data.get("pays_paysafecard")
+        nom_produit_affiche = f"{produit} ({pays})" if pays else produit
 
         await demarrer_compte_a_rebours(
             context, query.message.chat_id, query.message.message_id,
-            t["ask_qty"], {"produit": produit, "eur": montant_eur}
+            t["ask_qty"], {"produit": nom_produit_affiche, "eur": montant_eur}
         )
 
     elif data.startswith("paymethod_"):
@@ -520,6 +545,13 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
         context.user_data["timer_task"].cancel()
 
     produit = context.user_data.get("produit")
+    pays = context.user_data.get("pays_paysafecard")
+    
+    if pays:
+        produit_complet = f"{produit} [{pays}]"
+    else:
+        produit_complet = produit
+
     tx_id_origine = context.user_data.get("tx_id_completer")
     now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
@@ -548,9 +580,10 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
         tx_id = tx_id_origine
         context.user_data["tx_id_completer"] = None
     else:
+        nom_tx = f"{produit_complet} (Multiples x{quantite})" if etape == "ATTENTE_CODE_MIXTE" else f"{produit_complet} (x{quantite})"
         cursor.execute(
             "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (user.id, f"{produit} (Multiples x{quantite})" if etape == "ATTENTE_CODE_MIXTE" else f"{produit} (x{quantite})", "XOF", montant_eur, montant_crypto, contenu_code, "En attente", now_str)
+            (user.id, nom_tx, "XOF", montant_eur, montant_crypto, contenu_code, "En attente", now_str)
         )
         tx_id = cursor.lastrowid
 
@@ -578,7 +611,7 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
         f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
         f"🌐 <b>Langue client :</b> {lang.upper()}\n"
         f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
-        f"🏷 <b>Produit :</b> {html.escape(produit or 'PCS')} (x{quantite})\n"
+        f"🏷 <b>Produit :</b> {html.escape(produit_complet or 'PCS')} (x{quantite})\n"
         f"💶 <b>Montant Total Estimé :</b> {montant_eur} €\n"
         f"💰 <b>À Payer Estimé :</b> <code>{montant_crypto:,} XOF</code>\n\n"
         f"🔑 <b>Code(s) / Détails Soumis :</b>\n<code>{html.escape(contenu_code)}</code>"
@@ -601,7 +634,6 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
         )
 
 async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # BLOCAGE HORAIRE DIRECT
     if await verifier_horaires_et_bloquer(update):
         return
 
@@ -662,14 +694,16 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data["etape"] = "ATTENTE_CODE"
 
         produit = context.user_data.get("produit")
+        pays = context.user_data.get("pays_paysafecard")
+        nom_produit_affiche = f"{produit} [{pays}]" if pays else produit
 
         msg = await update.message.reply_text(
-            t["ask_code"].format(qty=quantite, produit=produit, m=10, s=0),
+            t["ask_code"].format(qty=quantite, produit=nom_produit_affiche, m=10, s=0),
             parse_mode="Markdown"
         )
         await demarrer_compte_a_rebours(
             context, update.message.chat_id, msg.message_id,
-            t["ask_code"], {"qty": quantite, "produit": produit}
+            t["ask_code"], {"qty": quantite, "produit": nom_produit_affiche}
         )
 
     elif etape in ["ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
@@ -731,7 +765,6 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # BLOCAGE HORAIRE DIRECT
     if await verifier_horaires_et_bloquer(update):
         return
 
@@ -972,4 +1005,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
