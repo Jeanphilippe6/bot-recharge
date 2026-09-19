@@ -133,6 +133,7 @@ TEXTS = {
         "transcash": "💳 Transcash",
         "cryptonow": "🪙 Cryptonow",
         "paysafecard": "🔒 Paysafecard",
+        "steam": "🎮 Steam Card",
         "solde": "💼 Mon Solde & Retrait",
         "history": "📜 Mes Transactions",
         "parrainage": "👥 Parrainage (+125 XOF)",
@@ -144,9 +145,10 @@ TEXTS = {
         "no_tx": "📜 Vous n'avez encore effectué aucune transaction.",
         "tx_title": "📜 **HISTORIQUE COMPLET DE VOS TRANSACTIONS :**\n\n",
         "ask_country": "🌍 **PAYS DE LA RECHARGE**\nDe quel pays provient votre recharge **Paysafecard** ?",
-        "ask_qty": "🔢 Combien de recharges **{produit}** de **{eur}€** avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2, 5...)_\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
+        "ask_devise": "💱 **CHOIX DE LA DEVISE**\nQuelle est la devise de votre **Steam Card** ?",
+        "ask_qty": "🔢 Combien de recharges **{produit}** de **{valeur}** avez-vous ?\n\n_Veuillez répondre par un chiffre (ex: 1, 2, 5...)_\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** (sous forme de texte ou de photo) ci-dessous :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
-        "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous (texte ou photo) en précisant le montant.\n\n**Exemple de format texte :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
+        "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous (texte ou photo) en précisant le montant.\n\n**Exemple de format texte :**\n<code>100 - ABCD1234EF\n50 - XYZ987654\n20 - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "code_received": "⏳ Code/Photo reçu(e) ! Vérification en cours...",
         "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée pour un montant de **{montant:,} XOF** !",
         "success_transcash_sans_frais": "🎉 **RECHARGE TRANSCASH VALIDÉE (SANS FRAIS)** ℹ️\n\nVotre recharge **{produit}** a été vérifiée par l'administrateur.\n\n👉 **Information importante :** Il s'agit d'un coupon **sans frais**. Le montant net exact qui vous est crédité est de **{montant:,} XOF**.",
@@ -173,6 +175,7 @@ TEXTS = {
         "transcash": "💳 Transcash",
         "cryptonow": "🪙 Cryptonow",
         "paysafecard": "🔒 Paysafecard",
+        "steam": "🎮 Steam Card",
         "solde": "💼 My Balance & Withdrawal",
         "history": "📜 My Transactions",
         "parrainage": "👥 Referral (+125 XOF)",
@@ -184,9 +187,10 @@ TEXTS = {
         "no_tx": "📜 You haven't made any transactions yet.",
         "tx_title": "📜 **FULL TRANSACTION HISTORY:**\n\n",
         "ask_country": "🌍 **CARD COUNTRY**\nWhich country is your **Paysafecard** top-up card from?",
-        "ask_qty": "🔢 How many **{produit}** top-up cards of **{eur}€** do you have?\n\n_Please enter a number (e.g., 1, 2, 5...)_\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
+        "ask_devise": "💱 **CURRENCY SELECTION**\nWhich currency is your **Steam Card** in?",
+        "ask_qty": "🔢 How many **{produit}** top-up cards of **{valeur}** do you have?\n\n_Please enter a number (e.g., 1, 2, 5...)_\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** (text or photo) below:\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
-        "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below (text or photo), specifying the amount.\n\n**Example text format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
+        "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below (text or photo), specifying the amount.\n\n**Example text format:**\n<code>100 - ABCD1234EF\n50 - XYZ987654\n20 - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "code_received": "⏳ Code/Photo received! Verification in progress...",
         "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated for **{montant:,} XOF**!",
         "success_transcash_sans_frais": "🎉 **TRANSCASH TOP-UP VALIDATED (NO-FEE)** ℹ️\n\nYour **{produit}** top-up has been verified by the administrator.\n\n👉 **Important notice:** Your card is identified as **no-fee**. The exact net credited amount is **{montant:,} XOF**.",
@@ -213,7 +217,16 @@ GRILLES_TARIFS = {
     "PCS": {20: 7000, 50: 24000, 100: 54000, 150: 84000, 200: 110000, 250: 144000},
     "Transcash": {20: 8000, 50: 30000, 100: 60000, 150: 90000, 200: 120000, 250: 150000, 500: 300000},
     "Cryptonow": {20: 7000, 50: 24000, 100: 54000, 150: 84000, 200: 110000, 250: 144000, 500: 285000},
-    "Paysafecard": {10: 3000, 20: 6000, 50: 21000, 100: 46000}
+    "Paysafecard": {10: 3000, 20: 6000, 50: 21000, 100: 46000},
+    "Steam Card (EUR)": {20: 6000, 25: 7000, 30: 10000, 50: 18000, 100: 38000},
+    "Steam Card (USD)": {20: 5000, 30: 8000, 50: 16000, 100: 35000},
+    "Steam Card (CAD)": {20: 4000, 30: 6000, 50: 10000, 100: 21000}
+}
+
+SYMBOLES_DEVISE = {
+    "Steam Card (EUR)": "€",
+    "Steam Card (USD)": "$",
+    "Steam Card (CAD)": "CAD$"
 }
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -232,6 +245,7 @@ def client_keyboard(lang):
     keyboard = [
         [InlineKeyboardButton(t["pcs"], callback_data="prod_PCS"), InlineKeyboardButton(t["transcash"], callback_data="prod_Transcash")],
         [InlineKeyboardButton(t["cryptonow"], callback_data="prod_Cryptonow"), InlineKeyboardButton(t["paysafecard"], callback_data="prod_Paysafecard")],
+        [InlineKeyboardButton(t["steam"], callback_data="prod_Steam")],
         [InlineKeyboardButton(t["solde"], callback_data="menu_solde"), InlineKeyboardButton(t["history"], callback_data="menu_history")],
         [InlineKeyboardButton(t["parrainage"], callback_data="menu_parrainage"), InlineKeyboardButton(t["lang"], callback_data="menu_lang")],
         [InlineKeyboardButton(t["support"], url=whatsapp_url)]
@@ -242,14 +256,16 @@ def rating_keyboard(tx_id):
     keyboard = [[InlineKeyboardButton(f"⭐ {i}", callback_data=f"rate_{tx_id}_{i}") for i in range(1, 8)]]
     return InlineKeyboardMarkup(keyboard)
 
-def afficher_tarifs_produit(produit, pays_info=""):
+def afficher_tarifs_produit(produit, info_complement=""):
     tarifs = GRILLES_TARIFS.get(produit, {})
-    keyboard = [[InlineKeyboardButton(f"{eur}€ ➡️ {xof:,} XOF", callback_data=f"montant_{eur}_{xof}")] for eur, xof in tarifs.items()]
+    symbole = SYMBOLES_DEVISE.get(produit, "€")
+    
+    keyboard = [[InlineKeyboardButton(f"{valeur}{symbole} ➡️ {xof:,} XOF", callback_data=f"montant_{valeur}_{xof}")] for valeur, xof in tarifs.items()]
     keyboard.append([InlineKeyboardButton("🔀 Montants multiples / Différents", callback_data="montant_mixte")])
     keyboard.append([InlineKeyboardButton("🔙 Retour", callback_data="menu_main")])
     
-    titre_pays = f" ({pays_info})" if pays_info else ""
-    texte = f"Service : <b>{html.escape(produit)}{titre_pays}</b>\n_Sélectionnez un montant fixe ou choisissez 'Montants multiples' si vous avez plusieurs coupons différents._"
+    titre_compl = f" ({info_complement})" if info_complement else ""
+    texte = f"Service : <b>{html.escape(produit)}{titre_compl}</b>\n_Sélectionnez un montant fixe ou choisissez 'Montants multiples' si vous avez plusieurs coupons différents._"
     return texte, InlineKeyboardMarkup(keyboard)
 
 async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int, text_template: str, kwargs: dict):
@@ -428,7 +444,7 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for r in rows:
                 date_heure = r[4] if r[4] else "N/A"
                 note_str = f" | ⭐ {r[5]}/7" if r[5] > 0 else ""
-                txt += f"• <b>[{date_heure}]</b> {html.escape(r[0])} {r[1]}€ ➡️ {r[2]:,} XOF ({r[3]}){note_str}\n"
+                txt += f"• <b>[{date_heure}]</b> {html.escape(r[0])} - {r[1]} ➡️ {r[2]:,} XOF ({r[3]}){note_str}\n"
 
         keyboard = [[InlineKeyboardButton(t["back"], callback_data="menu_main")]]
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
@@ -451,6 +467,17 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup(keyboard_pays),
                 parse_mode="Markdown"
             )
+        elif produit == "Steam":
+            keyboard_devise = [
+                [InlineKeyboardButton("💶 EUR (€)", callback_data="steam_devise_EUR"), InlineKeyboardButton("💵 USD ($)", callback_data="steam_devise_USD")],
+                [InlineKeyboardButton("🇨🇦 CAD ($)", callback_data="steam_devise_CAD")],
+                [InlineKeyboardButton(t["back"], callback_data="menu_main")]
+            ]
+            await query.edit_message_text(
+                t["ask_devise"],
+                reply_markup=InlineKeyboardMarkup(keyboard_devise),
+                parse_mode="Markdown"
+            )
         else:
             txt, reply_markup = afficher_tarifs_produit(produit)
             await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
@@ -460,7 +487,15 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["pays_paysafecard"] = pays
         produit = context.user_data.get("produit", "Paysafecard")
 
-        txt, reply_markup = afficher_tarifs_produit(produit, pays_info=pays)
+        txt, reply_markup = afficher_tarifs_produit(produit, info_complement=pays)
+        await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
+
+    elif data.startswith("steam_devise_"):
+        devise_code = data.split("_")[2]
+        nom_produit_steam = f"Steam Card ({devise_code})"
+        context.user_data["produit"] = nom_produit_steam
+
+        txt, reply_markup = afficher_tarifs_produit(nom_produit_steam)
         await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
 
     elif data == "montant_mixte":
@@ -474,21 +509,24 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("montant_"):
         parts = data.split("_")
-        montant_eur = int(parts[1])
+        montant_unitaire = int(parts[1])
         montant_crypto_unitaire = int(parts[2])
 
         context.user_data["is_mixte"] = False
-        context.user_data["montant_eur"] = montant_eur
+        context.user_data["montant_eur"] = montant_unitaire
         context.user_data["montant_crypto_unitaire"] = montant_crypto_unitaire
         context.user_data["etape"] = "ATTENTE_QUANTITE"
 
         produit = context.user_data.get("produit")
         pays = context.user_data.get("pays_paysafecard")
-        nom_produit_affiche = f"{produit} ({pays})" if pays else produit
+        symbole = SYMBOLES_DEVISE.get(produit, "€")
+        
+        nom_produit_affiche = f"{produit} [{pays}]" if pays else produit
+        valeur_str = f"{montant_unitaire}{symbole}"
 
         await demarrer_compte_a_rebours(
             context, query.message.chat_id, query.message.message_id,
-            t["ask_qty"], {"produit": nom_produit_affiche, "eur": montant_eur}
+            t["ask_qty"], {"produit": nom_produit_affiche, "valeur": valeur_str}
         )
 
     elif data.startswith("paymethod_"):
@@ -539,7 +577,7 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
     contenu_code = code_text if code_text else "[PHOTO REÇUE]"
 
     if etape == "ATTENTE_CODE_MIXTE":
-        valeurs_trouvees = [int(v) for v in re.findall(r'(\d+)\s*(?:€|eur|euros)', code_text, re.IGNORECASE)] if code_text else []
+        valeurs_trouvees = [int(v) for v in re.findall(r'(\d+)', code_text)] if code_text else []
         montant_eur = sum(valeurs_trouvees) if valeurs_trouvees else 0
         grille = GRILLES_TARIFS.get(produit, {})
         montant_crypto = sum(grille.get(val, val * 500) for val in valeurs_trouvees) if valeurs_trouvees else 0
@@ -590,13 +628,14 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
         ]
     ]
 
+    symbole = SYMBOLES_DEVISE.get(produit, "€")
     message_admin = (
         f"📥 <b>TRANSACTION N°{tx_id}</b> ({now_str})\n\n"
         f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
         f"🌐 <b>Langue client :</b> {lang.upper()}\n"
         f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
         f"🏷 <b>Produit :</b> {html.escape(produit_complet or 'PCS')} (x{quantite})\n"
-        f"💶 <b>Montant Soumis :</b> {montant_eur} €\n"
+        f"💶 <b>Montant Soumis :</b> {montant_eur} {symbole}\n"
         f"💰 <b>Paiement Estimé :</b> <code>{montant_crypto:,} XOF</code>\n\n"
         f"🔑 <b>Code(s) / Détails :</b>\n<code>{html.escape(contenu_code)}</code>"
     )
@@ -664,7 +703,6 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             await asyncio.sleep(0.7)
             await msg_anim.edit_text("💥 🎈 ✨ 🍾 <b>CONGRATULATIONS !</b> 🎉 🥳 👏", parse_mode="HTML")
 
-            # Notification au client expliquant que sa recharge Transcash est SANS FRAIS
             msg_success = t_client["success_transcash_sans_frais"].format(produit=produit, montant=nouveau_montant)
             await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
 
@@ -706,14 +744,14 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             return
 
         quantite = int(texte)
-        montant_eur_unitaire = context.user_data.get("montant_eur")
+        montant_unitaire = context.user_data.get("montant_eur")
         montant_crypto_unitaire = context.user_data.get("montant_crypto_unitaire")
 
-        montant_eur_total = montant_eur_unitaire * quantite
+        montant_total = montant_unitaire * quantite
         montant_crypto_total = montant_crypto_unitaire * quantite
 
         context.user_data["quantite"] = quantite
-        context.user_data["montant_eur"] = montant_eur_total
+        context.user_data["montant_eur"] = montant_total
         context.user_data["montant_crypto"] = montant_crypto_total
         context.user_data["etape"] = "ATTENTE_CODE"
 
