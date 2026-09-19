@@ -135,6 +135,7 @@ TEXTS = {
         "paysafecard": "🔒 Paysafecard",
         "steam": "🎮 Steam Card",
         "itunes": "🎵 iTunes Card",
+        "amazon": "🛒 Amazon Card",
         "solde": "💼 Mon Solde & Retrait",
         "history": "📜 Mes Transactions",
         "parrainage": "👥 Parrainage (+125 XOF)",
@@ -178,6 +179,7 @@ TEXTS = {
         "paysafecard": "🔒 Paysafecard",
         "steam": "🎮 Steam Card",
         "itunes": "🎵 iTunes Card",
+        "amazon": "🛒 Amazon Card",
         "solde": "💼 My Balance & Withdrawal",
         "history": "📜 My Transactions",
         "parrainage": "👥 Referral (+125 XOF)",
@@ -226,7 +228,10 @@ GRILLES_TARIFS = {
     "iTunes Card (EUR)": {20: 6000, 25: 7000, 30: 8000, 50: 16000, 100: 35000},
     "iTunes Card (USD)": {20: 5000, 30: 10000, 50: 18000, 100: 40000},
     "iTunes Card (CAD)": {20: 4000, 30: 6000, 50: 10000, 100: 25000},
-    "iTunes Card (CHF)": {20: 6000, 25: 8000, 30: 10000, 50: 20000, 100: 43000, 150: 65000}
+    "iTunes Card (CHF)": {20: 6000, 25: 8000, 30: 10000, 50: 20000, 100: 43000, 150: 65000},
+    "Amazon Card (EUR)": {25: 5000, 50: 16000, 100: 35000},
+    "Amazon Card (USD)": {50: 10000, 100: 40000},
+    "Amazon Card (CAD)": {50: 10000, 100: 20000}
 }
 
 SYMBOLES_DEVISE = {
@@ -236,7 +241,10 @@ SYMBOLES_DEVISE = {
     "iTunes Card (EUR)": "€",
     "iTunes Card (USD)": "$",
     "iTunes Card (CAD)": "CAD$",
-    "iTunes Card (CHF)": "CHF"
+    "iTunes Card (CHF)": "CHF",
+    "Amazon Card (EUR)": "€",
+    "Amazon Card (USD)": "$",
+    "Amazon Card (CAD)": "CAD$"
 }
 
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -256,6 +264,7 @@ def client_keyboard(lang):
         [InlineKeyboardButton(t["pcs"], callback_data="prod_PCS"), InlineKeyboardButton(t["transcash"], callback_data="prod_Transcash")],
         [InlineKeyboardButton(t["cryptonow"], callback_data="prod_Cryptonow"), InlineKeyboardButton(t["paysafecard"], callback_data="prod_Paysafecard")],
         [InlineKeyboardButton(t["steam"], callback_data="prod_Steam"), InlineKeyboardButton(t["itunes"], callback_data="prod_iTunes")],
+        [InlineKeyboardButton(t["amazon"], callback_data="prod_Amazon")],
         [InlineKeyboardButton(t["solde"], callback_data="menu_solde"), InlineKeyboardButton(t["history"], callback_data="menu_history")],
         [InlineKeyboardButton(t["parrainage"], callback_data="menu_parrainage"), InlineKeyboardButton(t["lang"], callback_data="menu_lang")],
         [InlineKeyboardButton(t["support"], url=whatsapp_url)]
@@ -499,6 +508,17 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup(keyboard_devise),
                 parse_mode="Markdown"
             )
+        elif produit == "Amazon":
+            keyboard_devise = [
+                [InlineKeyboardButton("💶 EUR (€)", callback_data="amazon_devise_EUR"), InlineKeyboardButton("💵 USD ($)", callback_data="amazon_devise_USD")],
+                [InlineKeyboardButton("🇨🇦 CAD ($)", callback_data="amazon_devise_CAD")],
+                [InlineKeyboardButton(t["back"], callback_data="menu_main")]
+            ]
+            await query.edit_message_text(
+                t["ask_devise"].format(produit="Amazon Card"),
+                reply_markup=InlineKeyboardMarkup(keyboard_devise),
+                parse_mode="Markdown"
+            )
         else:
             txt, reply_markup = afficher_tarifs_produit(produit)
             await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
@@ -525,6 +545,14 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["produit"] = nom_produit_itunes
 
         txt, reply_markup = afficher_tarifs_produit(nom_produit_itunes)
+        await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
+
+    elif data.startswith("amazon_devise_"):
+        devise_code = data.split("_")[2]
+        nom_produit_amazon = f"Amazon Card ({devise_code})"
+        context.user_data["produit"] = nom_produit_amazon
+
+        txt, reply_markup = afficher_tarifs_produit(nom_produit_amazon)
         await query.edit_message_text(txt, reply_markup=reply_markup, parse_mode="HTML")
 
     elif data == "montant_mixte":
