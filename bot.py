@@ -136,6 +136,7 @@ TEXTS = {
         "steam": "🎮 Steam Card",
         "itunes": "🎵 iTunes Card",
         "amazon": "🛒 Amazon Card",
+        "pay_address": "📍 Paiement par Adresse",
         "solde": "💼 Mon Solde & Retrait",
         "history": "📜 Mes Transactions",
         "parrainage": "👥 Parrainage (+125 XOF)",
@@ -169,6 +170,9 @@ TEXTS = {
         "qty_invalid": "❌ **Saisie invalide.** Veuillez taper un nombre entier.",
         "session_expired": "⏱ **SESSION EXPIRÉE !** ⚠️\n\nLe délai de 10 minutes est écoulé. La session a été fermée.\n\nVeuillez relancer une nouvelle demande dans le menu.",
         "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 20h30** (Heure GMT).\n\nMerci de revenir pendant les heures de service !",
+        "address_select_type": "📍 **PAIEMENT PAR ADRESSE**\n\nVeuillez sélectionner le type d'adresse souhaité :",
+        "address_requested": "⏳ **DEMANDE D'ADRESSE TRANSMISE**\n\nVotre demande d'adresse **{type}** a été transmise à l'administrateur.\n\nVous recevrez l'adresse sous peu dans ce tchat. Une fois votre transfert effectué, **renvoyez la capture d'écran** de la preuve de paiement ici.",
+        "address_verif_in_progress": "🔎 **VÉRIFICATION EN COURS**\n\nL'administrateur procède à la vérification de votre paiement sur l'adresse **{type}**. Veuillez patienter...",
         "back": "🔙 Retour"
     },
     "en": {
@@ -180,6 +184,7 @@ TEXTS = {
         "steam": "🎮 Steam Card",
         "itunes": "🎵 iTunes Card",
         "amazon": "🛒 Amazon Card",
+        "pay_address": "📍 Payment by Address",
         "solde": "💼 My Balance & Withdrawal",
         "history": "📜 My Transactions",
         "parrainage": "👥 Referral (+125 XOF)",
@@ -213,6 +218,9 @@ TEXTS = {
         "qty_invalid": "❌ **Invalid input.** Please type a valid number.",
         "session_expired": "⏱ **SESSION EXPIRED!** ⚠️\n\n10 minutes have passed without activity. Your session has been closed.\n\nPlease start a new request from the main menu.",
         "closed_message": "🔴 **SERVICE CLOSED** 🔴\n\nOur services are currently closed.\n\n⏰ **Opening Hours:**\nMonday to Sunday from **07:30 to 20:30** (GMT).\n\nThank you for coming back during service hours!",
+        "address_select_type": "📍 **PAYMENT BY ADDRESS**\n\nPlease select the desired address type:",
+        "address_requested": "⏳ **ADDRESS REQUEST SENT**\n\nYour request for a **{type}** address has been sent to the admin.\n\nYou will receive the address shortly in this chat. Once your transfer is done, **send back the screenshot** of the payment proof here.",
+        "address_verif_in_progress": "🔎 **VERIFICATION IN PROGRESS**\n\nThe administrator is verifying your payment on the **{type}** address. Please wait...",
         "back": "🔙 Back"
     }
 }
@@ -264,7 +272,7 @@ def client_keyboard(lang):
         [InlineKeyboardButton(t["pcs"], callback_data="prod_PCS"), InlineKeyboardButton(t["transcash"], callback_data="prod_Transcash")],
         [InlineKeyboardButton(t["cryptonow"], callback_data="prod_Cryptonow"), InlineKeyboardButton(t["paysafecard"], callback_data="prod_Paysafecard")],
         [InlineKeyboardButton(t["steam"], callback_data="prod_Steam"), InlineKeyboardButton(t["itunes"], callback_data="prod_iTunes")],
-        [InlineKeyboardButton(t["amazon"], callback_data="prod_Amazon")],
+        [InlineKeyboardButton(t["amazon"], callback_data="prod_Amazon"), InlineKeyboardButton(t["pay_address"], callback_data="menu_address")],
         [InlineKeyboardButton(t["solde"], callback_data="menu_solde"), InlineKeyboardButton(t["history"], callback_data="menu_history")],
         [InlineKeyboardButton(t["parrainage"], callback_data="menu_parrainage"), InlineKeyboardButton(t["lang"], callback_data="menu_lang")],
         [InlineKeyboardButton(t["support"], url=whatsapp_url)]
@@ -468,6 +476,53 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [[InlineKeyboardButton(t["back"], callback_data="menu_main")]]
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
+    # --- PAIEMENT PAR ADRESSE ---
+    elif data == "menu_address":
+        keyboard = [
+            [InlineKeyboardButton("🪙 Adresse BTC", callback_data="reqaddr_BTC")],
+            [InlineKeyboardButton("💳 Adresse PostePay", callback_data="reqaddr_PostePay")],
+            [InlineKeyboardButton(t["back"], callback_data="menu_main")]
+        ]
+        await query.edit_message_text(t["address_select_type"], reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+    elif data.startswith("reqaddr_"):
+        type_addr = data.split("_")[1]
+        now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+        cursor.execute(
+            "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (user.id, f"Paiement Adresse ({type_addr})", "XOF", 0, 0, "[EN ATTENTE D'ADRESSE]", "Demande d'adresse", now_str)
+        )
+        tx_id = cursor.lastrowid
+        conn.commit()
+
+        context.user_data["etape"] = "ATTENTE_CAPTURE_ADRESSE"
+        context.user_data["tx_id_adresse"] = tx_id
+        context.user_data["type_adresse"] = type_addr
+
+        keyboard_admin = [
+            [InlineKeyboardButton(f"📥 Envoyer Adresse {type_addr}", callback_data=f"admin_sendaddr_{user.id}_{tx_id}_{type_addr}")],
+            [InlineKeyboardButton("💬 Écrire au client", callback_data=f"admin_message_{user.id}")]
+        ]
+
+        await context.bot.send_message(
+            chat_id=ADMIN_CHAT_ID,
+            text=(
+                f"📍 <b>DEMANDE D'ADRESSE ({type_addr}) N°{tx_id}</b>\n\n"
+                f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
+                f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
+                f"🌐 <b>Langue :</b> {lang.upper()}\n"
+                f"⏰ <b>Date :</b> {now_str}"
+            ),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard_admin)
+        )
+
+        await query.edit_message_text(
+            t["address_requested"].format(type=type_addr),
+            parse_mode="Markdown"
+        )
+
     elif data.startswith("prod_"):
         produit = data.split("_")[1]
         context.user_data["produit"] = produit
@@ -668,7 +723,7 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
 
     await update.message.reply_text(t["code_received"])
 
-    # --- BOUTONS ADMIN : L'OPTION "SANS FRAIS / NET" EST UNIQUEMENT AFFICHÉE POUR TRANSCASH ---
+    # --- BOUTONS ADMIN ---
     ligne_validation = [InlineKeyboardButton("✅ Valider", callback_data=f"admin_valide_{tx_id}")]
     if "transcash" in produit.lower():
         ligne_validation.append(InlineKeyboardButton("✍️ Valider Net (Sans Frais)", callback_data=f"admin_validenet_{tx_id}"))
@@ -719,6 +774,25 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
     user = update.effective_user
     texte = update.message.text.strip() if update.message.text else ""
+
+    # ADMIN ENVOIE L'ADRESSE DEMANDÉE AU CLIENT
+    if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_sendaddr_data"):
+        data_addr = context.user_data.pop("admin_sendaddr_data")
+        client_id, tx_id, type_addr = data_addr["client_id"], data_addr["tx_id"], data_addr["type_addr"]
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE transactions SET code = ? WHERE id = ?", (f"Adresse {type_addr} envoyée: {texte}", tx_id))
+        conn.commit()
+        conn.close()
+
+        await context.bot.send_message(
+            chat_id=client_id,
+            text=f"📍 **ADRESSE {type_addr.upper()} POUR VOTRE PAIEMENT :**\n\n`{texte}`\n\n👉 Une fois votre paiement effectué, veuillez renvoyer la **capture d'écran** de confirmation ici dans ce tchat.",
+            parse_mode="Markdown"
+        )
+        await update.message.reply_text("✅ **Adresse envoyée au client avec succès !**")
+        return
 
     # ADMIN SAISIT ET VALIDE LE MONTANT NET SANS FRAIS (EXCLUSIF TRANSCASH)
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_validenet_txid"):
@@ -907,6 +981,42 @@ async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     etape = context.user_data.get("etape")
+
+    # PREUVE CAPTURE DE PAIEMENT PAR ADRESSE ENVOYÉE PAR LE CLIENT
+    if etape == "ATTENTE_CAPTURE_ADRESSE":
+        tx_id = context.user_data.get("tx_id_adresse")
+        type_addr = context.user_data.get("type_adresse", "Adresse")
+        context.user_data["etape"] = None
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE transactions SET statut = 'Preuve reçue', code = 'Capture reçue' WHERE id = ?", (tx_id,))
+        conn.commit()
+        conn.close()
+
+        lang = get_user_lang(user.id)
+        await update.message.reply_text("✅ **Preuve de paiement reçue !** L'administrateur vérifie votre transfert...")
+
+        keyboard_admin = [
+            [InlineKeyboardButton("🔎 Lancer Vérification", callback_data=f"admin_startverif_{user.id}_{tx_id}_{type_addr}")],
+            [InlineKeyboardButton("✅ Valider Commande", callback_data=f"admin_valide_{tx_id}")],
+            [InlineKeyboardButton("❌ Rejeter Commande", callback_data=f"admin_invalide_{tx_id}")]
+        ]
+
+        await context.bot.send_photo(
+            chat_id=ADMIN_CHAT_ID,
+            photo=photo.file_id,
+            caption=(
+                f"🖼️ <b>PREUVE DE PAIEMENT REÇUE ({type_addr.upper()}) N°{tx_id}</b>\n\n"
+                f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
+                f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
+                f"💬 <b>Note/Légende :</b> {html.escape(caption or 'Aucune')}"
+            ),
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard_admin)
+        )
+        return
+
     if etape in ["ATTENTE_CODE", "ATTENTE_CODE_MIXTE"]:
         await enregistrer_et_envoyer_transaction(update, context, code_text=caption, photo_file_id=photo.file_id)
 
@@ -922,7 +1032,41 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
     conn = get_db()
     cursor = conn.cursor()
 
-    if action == "valide":
+    if action == "sendaddr":
+        client_id = int(data[2])
+        tx_id = int(data[3])
+        type_addr = data[4]
+
+        context.user_data["admin_sendaddr_data"] = {
+            "client_id": client_id,
+            "tx_id": tx_id,
+            "type_addr": type_addr
+        }
+        await query.message.reply_text(
+            f"✍️ **ENVOI D'ADRESSE {type_addr.upper()}**\n\nVeuillez saisir l'adresse {type_addr} à envoyer au client (`ID: {client_id}`) :",
+            parse_mode="Markdown"
+        )
+
+    elif action == "startverif":
+        client_id = int(data[2])
+        tx_id = int(data[3])
+        type_addr = data[4]
+
+        client_lang = get_user_lang(client_id)
+        t_client = TEXTS[client_lang]
+
+        await context.bot.send_message(
+            chat_id=client_id,
+            text=t_client["address_verif_in_progress"].format(type=type_addr),
+            parse_mode="Markdown"
+        )
+
+        if query.message.caption:
+            await query.edit_message_caption(caption=f"{query.message.caption}\n\n🔎 **NOTIFICATION DE VÉRIFICATION ENVOYÉE AU CLIENT**")
+        else:
+            await query.edit_message_text(f"{query.message.text}\n\n🔎 **NOTIFICATION DE VÉRIFICATION ENVOYÉE AU CLIENT**")
+
+    elif action == "valide":
         tx_id = int(data[2])
         cursor.execute("SELECT user_id, produit, montant_crypto FROM transactions WHERE id = ?", (tx_id,))
         tx = cursor.fetchone()
