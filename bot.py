@@ -149,6 +149,7 @@ TEXTS = {
         "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous (texte ou photo) en précisant le montant.\n\n**Exemple de format texte :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "code_received": "⏳ Code/Photo reçu(e) ! Vérification en cours...",
         "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée pour un montant de **{montant:,} XOF** !",
+        "success_transcash_sans_frais": "🎉 **RECHARGE TRANSCASH VALIDÉE (SANS FRAIS)** ℹ️\n\nVotre recharge **{produit}** a été vérifiée par l'administrateur.\n\n👉 **Information importante :** Il s'agit d'un coupon **sans frais**. Le montant net exact qui vous est crédité est de **{montant:,} XOF**.",
         "select_payment_method": "📲 **CHOIX DU MODE DE PAIEMENT**\n\nVotre recharge est validée ! Veuillez sélectionner le moyen par lequel vous souhaitez recevoir votre paiement ({montant:,} XOF) :",
         "ask_phone_number": "📱 Veuillez envoyer votre numéro de téléphone **{methode}** ci-dessous pour recevoir le paiement :",
         "phone_received": "✅ Numéro reçu ! L'administrateur procède à l'envoi du paiement...",
@@ -188,6 +189,7 @@ TEXTS = {
         "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below (text or photo), specifying the amount.\n\n**Example text format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "code_received": "⏳ Code/Photo received! Verification in progress...",
         "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated for **{montant:,} XOF**!",
+        "success_transcash_sans_frais": "🎉 **TRANSCASH TOP-UP VALIDATED (NO-FEE)** ℹ️\n\nYour **{produit}** top-up has been verified by the administrator.\n\n👉 **Important notice:** Your card is identified as **no-fee**. The exact net credited amount is **{montant:,} XOF**.",
         "select_payment_method": "📲 **SELECT PAYMENT METHOD**\n\nYour top-up is validated! Please select how you want to receive your payment ({montant:,} XOF):",
         "ask_phone_number": "📱 Please enter your **{methode}** phone number below to receive payment:",
         "phone_received": "✅ Number received! The administrator is processing your payment...",
@@ -571,11 +573,13 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
 
     await update.message.reply_text(t["code_received"])
 
+    # --- BOUTONS ADMIN : L'OPTION "SANS FRAIS / NET" EST UNIQUEMENT AFFICHÉE POUR TRANSCASH ---
+    ligne_validation = [InlineKeyboardButton("✅ Valider", callback_data=f"admin_valide_{tx_id}")]
+    if "transcash" in produit.lower():
+        ligne_validation.append(InlineKeyboardButton("✍️ Valider Net (Sans Frais)", callback_data=f"admin_validenet_{tx_id}"))
+
     keyboard = [
-        [
-            InlineKeyboardButton("✅ Valider (Normal)", callback_data=f"admin_valide_{tx_id}"),
-            InlineKeyboardButton("✍️ Valider + Saisir Montant Net", callback_data=f"admin_validenet_{tx_id}")
-        ],
+        ligne_validation,
         [
             InlineKeyboardButton("❌ Rejeter Code", callback_data=f"admin_invalide_{tx_id}"),
             InlineKeyboardButton("➕ Demander de compléter", callback_data=f"admin_completer_{tx_id}")
@@ -620,11 +624,11 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     texte = update.message.text.strip() if update.message.text else ""
 
-    # ADMIN S'IL SAISIT UN MONTANT SANS FRAIS / NET
+    # ADMIN SAISIT ET VALIDE LE MONTANT NET SANS FRAIS (EXCLUSIF TRANSCASH)
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_validenet_txid"):
         tx_id = context.user_data.pop("admin_validenet_txid")
         if not texte.isdigit():
-            await update.message.reply_text("❌ Veuillez saisir un montant valide en chiffres uniquement (ex: 21000).")
+            await update.message.reply_text("❌ Veuillez saisir un montant net valide en chiffres uniquement (ex: 28000).")
             return
 
         nouveau_montant = int(texte)
@@ -652,7 +656,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             client_lang = get_user_lang(client_id)
             t_client = TEXTS[client_lang]
 
-            await update.message.reply_text(f"✅ Transaction N°{tx_id} validée pour un montant net de **{nouveau_montant:,} XOF** !")
+            await update.message.reply_text(f"✅ Transcash N°{tx_id} validé avec le montant NET de **{nouveau_montant:,} XOF** !")
 
             msg_anim = await context.bot.send_message(chat_id=client_id, text="✨ 🟢 ⏳ Payment Validation...")
             await asyncio.sleep(0.7)
@@ -660,7 +664,8 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             await asyncio.sleep(0.7)
             await msg_anim.edit_text("💥 🎈 ✨ 🍾 <b>CONGRATULATIONS !</b> 🎉 🥳 👏", parse_mode="HTML")
 
-            msg_success = t_client["success_recharge"].format(produit=produit, montant=nouveau_montant)
+            # Notification au client expliquant que sa recharge Transcash est SANS FRAIS
+            msg_success = t_client["success_transcash_sans_frais"].format(produit=produit, montant=nouveau_montant)
             await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
 
             pay_keyboard = [
@@ -876,7 +881,7 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
         tx_id = int(data[2])
         context.user_data["admin_validenet_txid"] = tx_id
         await query.message.reply_text(
-            f"✍️ **VALIDATION SANS FRAIS / MONTANT RÉEL**\n\nTransaction N°{tx_id}.\nVeuillez saisir le **montant net exact en XOF** à attribuer au client (ex: `21000`) :",
+            f"✍️ **VALIDATION TRANSCASH SANS FRAIS**\n\nTransaction Transcash N°{tx_id}.\nVeuillez taper le **montant net exact en XOF** à donner au client (ex: `32000`) :\n\n_Note: Le client recevra un message indiquant que son Transcash est sans frais._",
             parse_mode="Markdown"
         )
 
