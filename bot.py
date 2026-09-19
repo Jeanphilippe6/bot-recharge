@@ -453,12 +453,13 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["produit"] = produit
         context.user_data["pays_paysafecard"] = None  # Réinitialise le pays si autre produit
 
-        # Si le client choisit Paysafecard, on demande d'abord le pays
+        # Si le client choisit Paysafecard, on affiche la liste des 8 pays demandés
         if produit == "Paysafecard":
             keyboard_pays = [
-                [InlineKeyboardButton("🇫🇷 France", callback_data="paysafecard_pays_France"), InlineKeyboardButton("🇨🇮 Côte d'Ivoire", callback_data="paysafecard_pays_Côte d'Ivoire")],
-                [InlineKeyboardButton("🇧🇪 Belgique", callback_data="paysafecard_pays_Belgique"), InlineKeyboardButton("🇨🇭 Suisse", callback_data="paysafecard_pays_Suisse")],
-                [InlineKeyboardButton("🇪🇸 Espagne", callback_data="paysafecard_pays_Espagne"), InlineKeyboardButton("🌍 Autre Pays", callback_data="paysafecard_pays_Autre")],
+                [InlineKeyboardButton("🇫🇷 France", callback_data="paysafecard_pays_France"), InlineKeyboardButton("🇩🇪 Allemagne", callback_data="paysafecard_pays_Allemagne")],
+                [InlineKeyboardButton("🇱🇺 Luxembourg", callback_data="paysafecard_pays_Luxembourg"), InlineKeyboardButton("🇪🇸 Espagne", callback_data="paysafecard_pays_Espagne")],
+                [InlineKeyboardButton("🇧🇪 Belgique", callback_data="paysafecard_pays_Belgique"), InlineKeyboardButton("🇦🇹 Autriche", callback_data="paysafecard_pays_Autriche")],
+                [InlineKeyboardButton("🇭🇷 Croatie", callback_data="paysafecard_pays_Croatie"), InlineKeyboardButton("🇳🇱 Pays-Bas", callback_data="paysafecard_pays_Pays-Bas")],
                 [InlineKeyboardButton(t["back"], callback_data="menu_main")]
             ]
             await query.edit_message_text(
