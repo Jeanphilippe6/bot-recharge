@@ -93,11 +93,8 @@ ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", 0))
 NUMERO_WHATSAPP = "2250173467331"
 BONUS_PARRAINAGE = 125
 SEUIL_MIN_RETRAIT = 2000
-TIMEOUT_SESSION = 600  # 10 minutes (600s)
+TIMEOUT_SESSION = 600  # 10 minutes
 
-# ---------------------------------------------------------
-# VÉRIFICATION STRICTE DES HORAIRES (07H30 - 20H30 GMT)
-# ---------------------------------------------------------
 def est_ouvert():
     maintenant = datetime.now(zoneinfo.ZoneInfo("Africa/Abidjan")).time()
     debut = datetime.strptime("07:30", "%H:%M").time()
@@ -105,7 +102,6 @@ def est_ouvert():
     return debut <= maintenant <= fin
 
 async def verifier_horaires_et_bloquer(update: Update) -> bool:
-    """Renvoie True si le bot est FERMÉ (et envoie le message de fermeture), sinon False."""
     user = update.effective_user
     if not user:
         return False
@@ -152,7 +148,7 @@ TEXTS = {
         "ask_code": "👉 Veuillez envoyer vos **{qty} code(s) de recharge {produit}** (sous forme de texte ou de photo) ci-dessous :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "ask_mixed_codes": "🔀 **RECHARGES MULTIPLES / DIFFÉRENTS MONTANTS**\n\nVeuillez envoyer tous vos codes ci-dessous (texte ou photo) en précisant le montant.\n\n**Exemple de format texte :**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "code_received": "⏳ Code/Photo reçu(e) ! Vérification en cours...",
-        "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée avec succès !",
+        "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée pour un montant de **{montant:,} XOF** !",
         "select_payment_method": "📲 **CHOIX DU MODE DE PAIEMENT**\n\nVotre recharge est validée ! Veuillez sélectionner le moyen par lequel vous souhaitez recevoir votre paiement ({montant:,} XOF) :",
         "ask_phone_number": "📱 Veuillez envoyer votre numéro de téléphone **{methode}** ci-dessous pour recevoir le paiement :",
         "phone_received": "✅ Numéro reçu ! L'administrateur procède à l'envoi du paiement...",
@@ -164,10 +160,10 @@ TEXTS = {
         "retrait_demande": "💸 **DEMANDE DE RETRAIT** ({solde:,} XOF)\n\nVeuillez envoyer votre numéro de dépôt (Wave, Orange, MTN, Moov) :",
         "rate_prompt": "⭐ **ÉVALUATION DE LA TRANSACTION** ⭐\nComment évaluez-vous ce service ? Notez sur 7 étoiles :",
         "thanks_rate": "🙏 **Merci pour votre note de {stars}/7 !** Votre avis nous aide à nous améliorer.",
-        "liquidite_insuffisante": "⚠️ **TRANSACTION IMPOSSIBLE** ⚠️\n\nLa liquidité disponible actuellement ({liq:,} XOF) est insuffisante pour traiter cette transaction de {montant:,} XOF. Veuillez réessayer plus tard ou choisir un montant inférieur.",
+        "liquidite_insuffisante": "⚠️ **TRANSACTION IMPOSSIBLE** ⚠️\n\nLa liquidité disponible actuellement ({liq:,} XOF) est insuffisante pour traiter cette transaction. Veuillez réessayer plus tard.",
         "qty_invalid": "❌ **Saisie invalide.** Veuillez taper un nombre entier.",
         "session_expired": "⏱ **SESSION EXPIRÉE !** ⚠️\n\nLe délai de 10 minutes est écoulé. La session a été fermée.\n\nVeuillez relancer une nouvelle demande dans le menu.",
-        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 20h30** (Heure de Côte d'Ivoire / GMT).\n\nMerci de revenir pendant les heures de service !",
+        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 20h30** (Heure GMT).\n\nMerci de revenir pendant les heures de service !",
         "back": "🔙 Retour"
     },
     "en": {
@@ -191,7 +187,7 @@ TEXTS = {
         "ask_code": "👉 Please send your **{qty} {produit} top-up code(s)** (text or photo) below:\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "ask_mixed_codes": "🔀 **MULTIPLE CARDS / DIFFERENT AMOUNTS**\n\nPlease send all your codes below (text or photo), specifying the amount.\n\n**Example text format:**\n<code>100€ - ABCD1234EF\n50€ - XYZ987654\n20€ - QWER112233</code>\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "code_received": "⏳ Code/Photo received! Verification in progress...",
-        "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated!",
+        "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated for **{montant:,} XOF**!",
         "select_payment_method": "📲 **SELECT PAYMENT METHOD**\n\nYour top-up is validated! Please select how you want to receive your payment ({montant:,} XOF):",
         "ask_phone_number": "📱 Please enter your **{methode}** phone number below to receive payment:",
         "phone_received": "✅ Number received! The administrator is processing your payment...",
@@ -203,10 +199,10 @@ TEXTS = {
         "retrait_demande": "💸 **WITHDRAWAL REQUEST** ({solde:,} XOF)\n\nPlease send your payment account details:",
         "rate_prompt": "⭐ **TRANSACTION RATING** ⭐\nHow would you rate our service? Please give a rating out of 7 stars:",
         "thanks_rate": "🙏 **Thank you for your {stars}/7 rating!** Your feedback is appreciated.",
-        "liquidite_insuffisante": "⚠️ **TRANSACTION NOT POSSIBLE** ⚠️\n\nThe current available liquidity ({liq:,} XOF) is insufficient to process this transaction of {montant:,} XOF. Please try again later or select a smaller amount.",
+        "liquidite_insuffisante": "⚠️ **TRANSACTION NOT POSSIBLE** ⚠️\n\nThe current available liquidity ({liq:,} XOF) is insufficient. Please try again later.",
         "qty_invalid": "❌ **Invalid input.** Please type a valid number.",
         "session_expired": "⏱ **SESSION EXPIRED!** ⚠️\n\n10 minutes have passed without activity. Your session has been closed.\n\nPlease start a new request from the main menu.",
-        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 20h30** (Heure de Côte d'Ivoire / GMT).\n\nMerci de revenir pendant les heures de service !",
+        "closed_message": "🔴 **SERVICE CLOSED** 🔴\n\nOur services are currently closed.\n\n⏰ **Opening Hours:**\nMonday to Sunday from **07:30 to 20:30** (GMT).\n\nThank you for coming back during service hours!",
         "back": "🔙 Back"
     }
 }
@@ -218,10 +214,7 @@ GRILLES_TARIFS = {
     "Paysafecard": {10: 3000, 20: 6000, 50: 21000, 100: 46000}
 }
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 def get_user_lang(user_id):
     conn = get_db()
@@ -257,9 +250,6 @@ def afficher_tarifs_produit(produit, pays_info=""):
     texte = f"Service : <b>{html.escape(produit)}{titre_pays}</b>\n_Sélectionnez un montant fixe ou choisissez 'Montants multiples' si vous avez plusieurs coupons différents._"
     return texte, InlineKeyboardMarkup(keyboard)
 
-# ---------------------------------------------------------
-# COMPTE À REBOURS
-# ---------------------------------------------------------
 async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int, text_template: str, kwargs: dict):
     if "timer_task" in context.user_data and context.user_data["timer_task"]:
         context.user_data["timer_task"].cancel()
@@ -300,15 +290,11 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
 
     context.user_data["timer_task"] = asyncio.create_task(_timer())
 
-# ---------------------------------------------------------
-# COMMANDES CLIENT & ADMIN
-# ---------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await verifier_horaires_et_bloquer(update):
         return
 
     user = update.effective_user
-
     if "timer_task" in context.user_data and context.user_data["timer_task"]:
         context.user_data["timer_task"].cancel()
     context.user_data["etape"] = None
@@ -351,9 +337,6 @@ async def admin_set_liquidite(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception:
         await update.message.reply_text("Usage: `/liquidite 50000000`", parse_mode="Markdown")
 
-# ---------------------------------------------------------
-# CALLBACKS CLIENT & ADMIN
-# ---------------------------------------------------------
 async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await verifier_horaires_et_bloquer(update):
         return
@@ -451,9 +434,8 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("prod_"):
         produit = data.split("_")[1]
         context.user_data["produit"] = produit
-        context.user_data["pays_paysafecard"] = None  # Réinitialise le pays si autre produit
+        context.user_data["pays_paysafecard"] = None
 
-        # Si le client choisit Paysafecard, on affiche la liste des 8 pays demandés
         if produit == "Paysafecard":
             keyboard_pays = [
                 [InlineKeyboardButton("🇫🇷 France", callback_data="paysafecard_pays_France"), InlineKeyboardButton("🇩🇪 Allemagne", callback_data="paysafecard_pays_Allemagne")],
@@ -547,11 +529,7 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
 
     produit = context.user_data.get("produit")
     pays = context.user_data.get("pays_paysafecard")
-    
-    if pays:
-        produit_complet = f"{produit} [{pays}]"
-    else:
-        produit_complet = produit
+    produit_complet = f"{produit} [{pays}]" if pays else produit
 
     tx_id_origine = context.user_data.get("tx_id_completer")
     now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -595,15 +573,16 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
 
     keyboard = [
         [
-            InlineKeyboardButton("✅ Valider Code", callback_data=f"admin_valide_{tx_id}"),
-            InlineKeyboardButton("❌ Rejeter Code", callback_data=f"admin_invalide_{tx_id}")
+            InlineKeyboardButton("✅ Valider (Normal)", callback_data=f"admin_valide_{tx_id}"),
+            InlineKeyboardButton("✍️ Valider + Saisir Montant Net", callback_data=f"admin_validenet_{tx_id}")
         ],
         [
-            InlineKeyboardButton("➕ Demander de compléter", callback_data=f"admin_completer_{tx_id}"),
-            InlineKeyboardButton("💬 Écrire Texte", callback_data=f"admin_message_{user.id}")
+            InlineKeyboardButton("❌ Rejeter Code", callback_data=f"admin_invalide_{tx_id}"),
+            InlineKeyboardButton("➕ Demander de compléter", callback_data=f"admin_completer_{tx_id}")
         ],
         [
-            InlineKeyboardButton("🖼️ Envoyer Photo au client", callback_data=f"admin_sendphoto_{user.id}")
+            InlineKeyboardButton("💬 Écrire Texte", callback_data=f"admin_message_{user.id}"),
+            InlineKeyboardButton("🖼️ Envoyer Photo/Preuve", callback_data=f"admin_sendphoto_{user.id}")
         ]
     ]
 
@@ -613,9 +592,9 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
         f"🌐 <b>Langue client :</b> {lang.upper()}\n"
         f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
         f"🏷 <b>Produit :</b> {html.escape(produit_complet or 'PCS')} (x{quantite})\n"
-        f"💶 <b>Montant Total Estimé :</b> {montant_eur} €\n"
-        f"💰 <b>À Payer Estimé :</b> <code>{montant_crypto:,} XOF</code>\n\n"
-        f"🔑 <b>Code(s) / Détails Soumis :</b>\n<code>{html.escape(contenu_code)}</code>"
+        f"💶 <b>Montant Soumis :</b> {montant_eur} €\n"
+        f"💰 <b>Paiement Estimé :</b> <code>{montant_crypto:,} XOF</code>\n\n"
+        f"🔑 <b>Code(s) / Détails :</b>\n<code>{html.escape(contenu_code)}</code>"
     )
 
     if photo_file_id:
@@ -641,6 +620,64 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     texte = update.message.text.strip() if update.message.text else ""
 
+    # ADMIN S'IL SAISIT UN MONTANT SANS FRAIS / NET
+    if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_validenet_txid"):
+        tx_id = context.user_data.pop("admin_validenet_txid")
+        if not texte.isdigit():
+            await update.message.reply_text("❌ Veuillez saisir un montant valide en chiffres uniquement (ex: 21000).")
+            return
+
+        nouveau_montant = int(texte)
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
+        tx = cursor.fetchone()
+
+        if tx:
+            client_id, produit = tx[0], tx[1]
+            cursor.execute("UPDATE transactions SET statut = 'Validé', montant_crypto = ? WHERE id = ?", (nouveau_montant, tx_id))
+            cursor.execute("UPDATE settings SET value = value - ? WHERE key='liquidite'", (nouveau_montant,))
+
+            cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (client_id,))
+            ref_row = cursor.fetchone()
+            if ref_row and ref_row[0]:
+                referrer_id = ref_row[0]
+                cursor.execute("SELECT COUNT(*) FROM transactions WHERE user_id = ? AND statut = 'Validé'", (client_id,))
+                if cursor.fetchone()[0] == 1:
+                    cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (BONUS_PARRAINAGE, referrer_id))
+
+            conn.commit()
+            conn.close()
+
+            client_lang = get_user_lang(client_id)
+            t_client = TEXTS[client_lang]
+
+            await update.message.reply_text(f"✅ Transaction N°{tx_id} validée pour un montant net de **{nouveau_montant:,} XOF** !")
+
+            msg_anim = await context.bot.send_message(chat_id=client_id, text="✨ 🟢 ⏳ Payment Validation...")
+            await asyncio.sleep(0.7)
+            await msg_anim.edit_text("🎉 🥳 💫 <b>PAYMENT CONFIRMED !</b>", parse_mode="HTML")
+            await asyncio.sleep(0.7)
+            await msg_anim.edit_text("💥 🎈 ✨ 🍾 <b>CONGRATULATIONS !</b> 🎉 🥳 👏", parse_mode="HTML")
+
+            msg_success = t_client["success_recharge"].format(produit=produit, montant=nouveau_montant)
+            await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
+
+            pay_keyboard = [
+                [
+                    InlineKeyboardButton("🌊 Wave", callback_data=f"paymethod_Wave_{tx_id}"),
+                    InlineKeyboardButton("🍊 Orange Money", callback_data=f"paymethod_OrangeMoney_{tx_id}")
+                ]
+            ]
+            await context.bot.send_message(
+                chat_id=client_id,
+                text=t_client["select_payment_method"].format(montant=nouveau_montant),
+                reply_markup=InlineKeyboardMarkup(pay_keyboard),
+                parse_mode="Markdown"
+            )
+        return
+
+    # MESSAGE TEXTE ADMIN VERS CLIENT
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_dest_id"):
         dest_id = context.user_data.pop("admin_dest_id")
         try:
@@ -669,25 +706,6 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
         montant_eur_total = montant_eur_unitaire * quantite
         montant_crypto_total = montant_crypto_unitaire * quantite
-
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT value FROM settings WHERE key='liquidite'")
-        liquidite = int(cursor.fetchone()[0])
-        conn.close()
-
-        if liquidite <= 0 or montant_crypto_total > liquidite:
-            if "timer_task" in context.user_data and context.user_data["timer_task"]:
-                context.user_data["timer_task"].cancel()
-
-            keyboard = [[InlineKeyboardButton(t["back"], callback_data="menu_main")]]
-            await update.message.reply_text(
-                t["liquidite_insuffisante"].format(liq=liquidite, montant=montant_crypto_total),
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
-            context.user_data["etape"] = None
-            return
 
         context.user_data["quantite"] = quantite
         context.user_data["montant_eur"] = montant_eur_total
@@ -776,14 +794,14 @@ async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_dest_photo_id"):
         dest_id = context.user_data.pop("admin_dest_photo_id")
         try:
-            caption_text = f"🖼️ **Image reçue de l'administrateur :**\n\n{caption}" if caption else "🖼️ **Image / Pièce jointe reçue de l'administrateur**"
+            caption_text = f"🖼️ **Preuve / Notification de l'administrateur :**\n\n{caption}" if caption else "🖼️ **Preuve / Capture reçue de l'administrateur**"
             await context.bot.send_photo(
                 chat_id=dest_id,
                 photo=photo.file_id,
                 caption=caption_text,
                 parse_mode="Markdown"
             )
-            await update.message.reply_text("✅ **Photo envoyée avec succès au client !**")
+            await update.message.reply_text("✅ **Capture/Photo envoyée avec succès au client !**")
         except Exception as e:
             await update.message.reply_text(f"❌ Impossible d'envoyer la photo : {e}")
         return
@@ -821,13 +839,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                 cursor.execute("SELECT COUNT(*) FROM transactions WHERE user_id = ? AND statut = 'Validé'", (client_id,))
                 if cursor.fetchone()[0] == 1:
                     cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (BONUS_PARRAINAGE, referrer_id))
-                    try:
-                        await context.bot.send_message(
-                            chat_id=referrer_id,
-                            text=f"🎉 **Bonus Parrainage !** Votre filleul a effectué sa première transaction. **+{BONUS_PARRAINAGE} XOF** crédités sur votre solde."
-                        )
-                    except Exception:
-                        pass
 
             conn.commit()
 
@@ -845,7 +856,7 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             await asyncio.sleep(0.7)
             await msg_anim.edit_text("💥 🎈 ✨ 🍾 <b>CONGRATULATIONS !</b> 🎉 🥳 👏", parse_mode="HTML")
 
-            msg_success = t_client["success_recharge"].format(produit=produit)
+            msg_success = t_client["success_recharge"].format(produit=produit, montant=montant)
             await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
 
             pay_keyboard = [
@@ -860,6 +871,14 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
                 reply_markup=InlineKeyboardMarkup(pay_keyboard),
                 parse_mode="Markdown"
             )
+
+    elif action == "validenet":
+        tx_id = int(data[2])
+        context.user_data["admin_validenet_txid"] = tx_id
+        await query.message.reply_text(
+            f"✍️ **VALIDATION SANS FRAIS / MONTANT RÉEL**\n\nTransaction N°{tx_id}.\nVeuillez saisir le **montant net exact en XOF** à attribuer au client (ex: `21000`) :",
+            parse_mode="Markdown"
+        )
 
     elif action == "payconfirm":
         tx_id = int(data[2])
@@ -990,7 +1009,6 @@ def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # HANDLERS CLASSIQUES
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("liquidite", admin_set_liquidite))
     app.add_handler(CallbackQueryHandler(gerer_actions_admin, pattern="^admin_"))
