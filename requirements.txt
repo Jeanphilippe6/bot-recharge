@@ -1,4 +1,4 @@
-python-telegram-bot==20.8
-python-telegram-bot[job-queue]
-flask
+Flask==3.0.0
+gunicorn==21.2.0
+python-telegram-bot==20.7
 pytz
