@@ -26,9 +26,7 @@
 </head>
 <body>
 
-  <!-- ========================================== -->
-  <!-- 1. INTERFACE ADMINISTRATEUR                -->
-  <!-- ========================================== -->
+  <!-- INTERFACE ADMINISTRATEUR -->
   <div class="card admin-panel">
     <h2>🛠️ Panneau d'administration</h2>
     <p><strong>Client :</strong> Jean Dupont</p>
@@ -41,17 +39,15 @@
 
     <hr style="margin: 15px 0;">
 
-    <!-- ÉTAPE 1 ADMIN : Lancer la vérification -->
     <div id="admin-step-start-verify">
       <button class="btn btn-warning" onclick="adminStartVerification()">
         🔍 Lancer la vérification
       </button>
     </div>
 
-    <!-- ÉTAPE 2 ADMIN : Boutons débloqués APRÈS avoir lancé la vérification -->
     <div id="admin-step-decision" class="hidden">
       <div class="alert alert-warning" style="margin-top: 10px;">
-        ⚙️ Verification en cours... Veuillez contrôler la preuve puis valider ou rejeter.
+        ⚙️ Vérification en cours... Veuillez contrôler la preuve puis valider ou rejeter.
       </div>
       <button class="btn btn-success" onclick="adminMakeDecision(true)">
         ✅ Valider la commande
@@ -62,14 +58,10 @@
     </div>
   </div>
 
-
-  <!-- ========================================== -->
-  <!-- 2. INTERFACE CLIENT                        -->
-  <!-- ========================================== -->
+  <!-- INTERFACE CLIENT -->
   <div class="card client-panel">
     <h2>🛒 Espace Client</h2>
 
-    <!-- ÉTAPE A : Envoi de la preuve par le client -->
     <div id="client-step-upload">
       <h3>Étape : Transmettre la preuve de paiement</h3>
       <form onsubmit="submitProof(event)">
@@ -79,7 +71,6 @@
       </form>
     </div>
 
-    <!-- ÉTAPE B : En attente du traitement -->
     <div id="client-step-waiting" class="hidden">
       <div class="alert alert-info">
         ⏳ <strong>Preuve envoyée !</strong><br>
@@ -87,7 +78,6 @@
       </div>
     </div>
 
-    <!-- ÉTAPE C : Vérification lancée par l'admin -->
     <div id="client-step-verifying" class="hidden">
       <div class="alert alert-warning">
         🔍 <strong>Vérification en cours...</strong><br>
@@ -95,7 +85,6 @@
       </div>
     </div>
 
-    <!-- ÉTAPE D1 : Commande Validée -->
     <div id="client-step-success" class="hidden">
       <div class="alert alert-success">
         🎉 <strong>Commande Validée !</strong><br>
@@ -103,7 +92,6 @@
       </div>
     </div>
 
-    <!-- ÉTAPE D2 : Commande Rejetée -->
     <div id="client-step-failed" class="hidden">
       <div class="alert alert-danger">
         ❌ <strong>Commande Rejetée</strong><br>
@@ -113,64 +101,42 @@
     </div>
   </div>
 
-
-  <!-- ========================================== -->
-  <!-- 3. LOGIQUE JAVASCRIPT                      -->
-  <!-- ========================================== -->
   <script>
-    // 1. Soumission de la preuve par le client
     function submitProof(event) {
       event.preventDefault();
-
       document.getElementById("client-step-upload").classList.add("hidden");
       document.getElementById("client-step-waiting").classList.remove("hidden");
-
       document.getElementById("admin-status").innerText = "Preuve de paiement reçue";
     }
 
-    // 2. Action Admin : Lancer la vérification
     function adminStartVerification() {
-      // Masquer le bouton "Lancer la vérification"
       document.getElementById("admin-step-start-verify").classList.add("hidden");
-
-      // Afficher les boutons "Valider la commande" et "Rejeter la commande"
       document.getElementById("admin-step-decision").classList.remove("hidden");
-
-      // Mise à jour des statuts
       document.getElementById("admin-status").innerText = "Vérification en cours...";
       document.getElementById("admin-status").style.backgroundColor = "#fff3cd";
 
-      // Mise à jour côté client
       document.getElementById("client-step-waiting").classList.add("hidden");
       document.getElementById("client-step-verifying").classList.remove("hidden");
     }
 
-    // 3. Action Admin : Valider ou Rejeter la commande
     function adminMakeDecision(isValidated) {
       document.getElementById("admin-step-decision").classList.add("hidden");
       document.getElementById("client-step-verifying").classList.add("hidden");
 
       if (isValidated) {
-        // Valider la commande
         document.getElementById("admin-status").innerText = "✅ Commande validée";
         document.getElementById("admin-status").style.backgroundColor = "#d4edda";
-
         document.getElementById("client-step-success").classList.remove("hidden");
       } else {
-        // Rejeter la commande
         document.getElementById("admin-status").innerText = "❌ Commande rejetée";
         document.getElementById("admin-status").style.backgroundColor = "#f8d7da";
-
         document.getElementById("client-step-failed").classList.remove("hidden");
       }
     }
 
-    // Permettre au client d'essayer à nouveau en cas de rejet
     function retryUpload() {
       document.getElementById("client-step-failed").classList.add("hidden");
       document.getElementById("client-step-upload").classList.remove("hidden");
-
-      // Réinitialiser la vue admin
       document.getElementById("admin-step-start-verify").classList.remove("hidden");
       document.getElementById("admin-status").innerText = "En attente d'une nouvelle preuve";
       document.getElementById("admin-status").style.backgroundColor = "#e2e3e5";
