@@ -997,10 +997,9 @@ async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang = get_user_lang(user.id)
         await update.message.reply_text("✅ **Preuve de paiement reçue !** L'administrateur vérifie votre transfert...")
 
+        # A la réception de la preuve, afficher SEULEMENT le bouton "Lancer la vérification"
         keyboard_admin = [
-            [InlineKeyboardButton("🔎 Lancer Vérification", callback_data=f"admin_startverif_{user.id}_{tx_id}_{type_addr}")],
-            [InlineKeyboardButton("✅ Valider Commande", callback_data=f"admin_valide_{tx_id}")],
-            [InlineKeyboardButton("❌ Rejeter Commande", callback_data=f"admin_invalide_{tx_id}")]
+            [InlineKeyboardButton("🔎 Lancer Vérification", callback_data=f"admin_startverif_{user.id}_{tx_id}_{type_addr}")]
         ]
 
         await context.bot.send_photo(
@@ -1055,16 +1054,32 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
         client_lang = get_user_lang(client_id)
         t_client = TEXTS[client_lang]
 
+        # Prévenir le client que la vérification est lancée
         await context.bot.send_message(
             chat_id=client_id,
             text=t_client["address_verif_in_progress"].format(type=type_addr),
             parse_mode="Markdown"
         )
 
+        # Clavier mis à jour pour l'administrateur avec Valider et Rejeter
+        keyboard_decision = [
+            [
+                InlineKeyboardButton("✅ Valider Commande", callback_data=f"admin_valide_{tx_id}"),
+                InlineKeyboardButton("❌ Rejeter Commande", callback_data=f"admin_invalide_{tx_id}")
+            ]
+        ]
+
+        # Mise à jour du message admin avec la notification et l'affichage des boutons de décision
         if query.message.caption:
-            await query.edit_message_caption(caption=f"{query.message.caption}\n\n🔎 **NOTIFICATION DE VÉRIFICATION ENVOYÉE AU CLIENT**")
+            await query.edit_message_caption(
+                caption=f"{query.message.caption}\n\n🔎 **VERIFICATION EN COURS...**",
+                reply_markup=InlineKeyboardMarkup(keyboard_decision)
+            )
         else:
-            await query.edit_message_text(f"{query.message.text}\n\n🔎 **NOTIFICATION DE VÉRIFICATION ENVOYÉE AU CLIENT**")
+            await query.edit_message_text(
+                text=f"{query.message.text}\n\n🔎 **VERIFICATION EN COURS...**",
+                reply_markup=InlineKeyboardMarkup(keyboard_decision)
+            )
 
     elif action == "valide":
         tx_id = int(data[2])
@@ -1090,9 +1105,9 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             t_client = TEXTS[client_lang]
 
             if query.message.caption:
-                await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ **CODE VALIDÉ PAR L'ADMIN**")
+                await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ **COMMANDE VALIDÉE PAR L'ADMIN**")
             else:
-                await query.edit_message_text(f"{query.message.text}\n\n✅ **CODE VALIDÉ PAR L'ADMIN**")
+                await query.edit_message_text(f"{query.message.text}\n\n✅ **COMMANDE VALIDÉE PAR L'ADMIN**")
 
             msg_anim = await context.bot.send_message(chat_id=client_id, text="✨ 🟢 ⏳ Payment Validation...")
             await asyncio.sleep(0.7)
@@ -1192,9 +1207,9 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             msg_refused = TEXTS[client_lang]["code_refused"]
 
             if query.message.caption:
-                await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ **CODE REFUSÉ PAR L'ADMIN**")
+                await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ **COMMANDE REFUSÉE PAR L'ADMIN**")
             else:
-                await query.edit_message_text(f"{query.message.text}\n\n❌ **CODE REFUSÉ PAR L'ADMIN**")
+                await query.edit_message_text(f"{query.message.text}\n\n❌ **COMMANDE REFUSÉE PAR L'ADMIN**")
 
             await context.bot.send_message(chat_id=client_id, text=msg_refused, parse_mode="Markdown")
 
