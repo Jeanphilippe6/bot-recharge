@@ -96,7 +96,12 @@ SEUIL_MIN_RETRAIT = 2000
 TIMEOUT_SESSION = 600  # 10 minutes
 
 def est_ouvert():
-    maintenant = datetime.now(zoneinfo.ZoneInfo("Africa/Abidjan")).time()
+    try:
+        tz = zoneinfo.ZoneInfo("Africa/Abidjan")
+        maintenant = datetime.now(tz).time()
+    except Exception:
+        maintenant = datetime.utcnow().time()
+
     debut = datetime.strptime("07:30", "%H:%M").time()
     fin = datetime.strptime("20:30", "%H:%M").time()
     return debut <= maintenant <= fin
@@ -155,12 +160,14 @@ TEXTS = {
         "code_received": "⏳ Code/Photo reçu(e) ! Vérification en cours...",
         "success_recharge": "🎉 **FÉLICITATIONS !** 🥳👏\nVotre recharge {produit} a été validée pour un montant de **{montant:,} XOF** !",
         "success_transcash_sans_frais": "🎉 **RECHARGE TRANSCASH VALIDÉE (SANS FRAIS)** ℹ️\n\nVotre recharge **{produit}** a été vérifiée par l'administrateur.\n\n👉 **Information importante :** Il s'agit d'un coupon **sans frais**. Le montant net exact qui vous est crédité est de **{montant:,} XOF**.",
-        "select_payment_method": "📲 **CHOIX DU MODE DE PAIEMENT**\n\nVotre recharge est validée ! Veuillez sélectionner le moyen par lequel vous souhaitez recevoir votre paiement ({montant:,} XOF) :",
+        "select_payment_method": "📲 **CHOIX DU MODE DE PAIEMENT**\n\nVotre paiement est validé ! Veuillez sélectionner le moyen par lequel vous souhaitez recevoir votre paiement ({montant:,} XOF) :",
         "ask_phone_number": "📱 Veuillez envoyer votre numéro de téléphone **{methode}** ci-dessous pour recevoir le paiement :",
         "phone_received": "✅ Numéro reçu ! L'administrateur procède à l'envoi du paiement...",
         "payment_sent": "💸 **PAIEMENT EFFECTUÉ !** 💸\n\nVotre paiement de **{montant:,} XOF** a été envoyé avec succès sur votre compte **{methode}** ({numero}). Merci pour votre confiance !",
         "phone_unreachable": "⚠️ **NUMÉRO INATTEIGNABLE OU INVALIDE** ⚠️\n\nL'administrateur signale que votre numéro **{numero}** est injoignable ou incorrect.\n\n👉 Veuillez renvoyer un **autre numéro de téléphone** pour recevoir votre paiement :",
         "code_refused": "❌ **Code invalide ou déjà utilisé.** Veuillez réessayer.",
+        "address_payment_received": "✅ **PAIEMENT REÇU !** 🟢\n\nVotre paiement par adresse pour **{produit}** a été vérifié et confirmé avec succès pour un montant de **{montant:,} XOF** !",
+        "address_payment_not_received": "❌ **PAIEMENT NON REÇU !** 🔴\n\nL'administrateur indique que le transfert sur l'adresse n'a pas été reçu ou est invalide.",
         "completer_demande": "⚠️ **RECHARGE INCOMPLÈTE !** ⚠️\n\nL'administrateur signale qu'il manque un ou plusieurs codes pour votre recharge **{produit}**.\n\n👉 Veuillez répondre ci-dessous en envoyant les codes ou photos manquants :\n\n⏳ Temps restant : **{m:02d}:{s:02d}**",
         "retrait_insuffisant": "❌ **Solde insuffisant.** Le montant minimum pour effectuer un retrait est de {min_retrait:,} XOF.",
         "retrait_demande": "💸 **DEMANDE DE RETRAIT** ({solde:,} XOF)\n\nVeuillez envoyer votre numéro de dépôt (Wave, Orange, MTN, Moov) :",
@@ -203,12 +210,14 @@ TEXTS = {
         "code_received": "⏳ Code/Photo received! Verification in progress...",
         "success_recharge": "🎉 **CONGRATULATIONS!** 🥳👏\nYour {produit} top-up has been successfully validated for **{montant:,} XOF**!",
         "success_transcash_sans_frais": "🎉 **TRANSCASH TOP-UP VALIDATED (NO-FEE)** ℹ️\n\nYour **{produit}** top-up has been verified by the administrator.\n\n👉 **Important notice:** Your card is identified as **no-fee**. The exact net credited amount is **{montant:,} XOF**.",
-        "select_payment_method": "📲 **SELECT PAYMENT METHOD**\n\nYour top-up is validated! Please select how you want to receive your payment ({montant:,} XOF):",
+        "select_payment_method": "📲 **SELECT PAYMENT METHOD**\n\nYour payment is validated! Please select how you want to receive your payment ({montant:,} XOF):",
         "ask_phone_number": "📱 Please enter your **{methode}** phone number below to receive payment:",
         "phone_received": "✅ Number received! The administrator is processing your payment...",
         "payment_sent": "💸 **PAYMENT SENT!** 💸\n\nYour payment of **{montant:,} XOF** was sent successfully to your **{methode}** account ({numero}). Thank you for your trust!",
         "phone_unreachable": "⚠️ **UNREACHABLE OR INVALID NUMBER** ⚠️\n\nThe administrator reported that your number **{numero}** is unreachable or incorrect.\n\n👉 Please send a **different phone number** to receive your payment:",
         "code_refused": "❌ **Invalid code or already used.** Please try again.",
+        "address_payment_received": "✅ **PAYMENT RECEIVED!** 🟢\n\nYour address payment for **{produit}** has been verified and confirmed for **{montant:,} XOF**!",
+        "address_payment_not_received": "❌ **PAYMENT NOT RECEIVED!** 🔴\n\nThe administrator reported that the address transfer was not received or is invalid.",
         "completer_demande": "⚠️ **INCOMPLETE TOP-UP!** ⚠️\n\nThe administrator reported missing code(s) for your **{produit}** recharge.\n\n👉 Please reply below with the missing code(s) or photo(s):\n\n⏳ Time remaining: **{m:02d}:{s:02d}**",
         "retrait_insuffisant": "❌ **Insufficient balance.** The minimum withdrawal amount is {min_retrait:,} XOF.",
         "retrait_demande": "💸 **WITHDRAWAL REQUEST** ({solde:,} XOF)\n\nPlease send your payment account details:",
@@ -336,13 +345,14 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
     context.user_data["timer_task"] = asyncio.create_task(_timer())
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await verifier_horaires_et_bloquer(update):
+    user = update.effective_user
+    if not user:
         return
 
-    user = update.effective_user
+    # Annulation des compteurs et nettoyage de session
     if "timer_task" in context.user_data and context.user_data["timer_task"]:
         context.user_data["timer_task"].cancel()
-    context.user_data["etape"] = None
+    context.user_data.clear()
 
     conn = get_db()
     cursor = conn.cursor()
@@ -363,6 +373,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.close()
 
     lang = get_user_lang(user.id)
+
+    # Vérification des horaires pour les clients
+    if user.id != ADMIN_CHAT_ID and not est_ouvert():
+        msg_ferme = TEXTS[lang]["closed_message"]
+        await update.message.reply_text(msg_ferme, parse_mode="Markdown")
+        return
+
     await update.message.reply_text(
         TEXTS[lang]["welcome"].format(name=html.escape(user.first_name)),
         reply_markup=client_keyboard(lang)
@@ -383,10 +400,15 @@ async def admin_set_liquidite(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("Usage: `/liquidite 50000000`", parse_mode="Markdown")
 
 async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    try:
+        await query.answer()
+    except Exception:
+        pass
+
     if await verifier_horaires_et_bloquer(update):
         return
 
-    query = update.callback_query
     data = query.data
     user = update.effective_user
 
@@ -775,7 +797,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
     user = update.effective_user
     texte = update.message.text.strip() if update.message.text else ""
 
-    # ADMIN SAISIT LE MONTANT A SIGNIFICATIF À RECEVOIR
+    # ADMIN SAISIT LE MONTANT EXACT À RECEVOIR
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_saisir_montant_txid"):
         tx_id = context.user_data.pop("admin_saisir_montant_txid")
 
@@ -818,7 +840,11 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             await asyncio.sleep(0.7)
             await msg_anim.edit_text("💥 🎈 ✨ 🍾 <b>CONGRATULATIONS !</b> 🎉 🥳 👏", parse_mode="HTML")
 
-            msg_success = t_client["success_recharge"].format(produit=produit, montant=nouveau_montant)
+            if "Paiement Adresse" in produit:
+                msg_success = t_client["address_payment_received"].format(produit=produit, montant=nouveau_montant)
+            else:
+                msg_success = t_client["success_recharge"].format(produit=produit, montant=nouveau_montant)
+
             await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
 
             pay_keyboard = [
@@ -1217,15 +1243,20 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif action == "invalide":
         tx_id = int(data[2])
-        cursor.execute("SELECT user_id FROM transactions WHERE id = ?", (tx_id,))
+        cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
         tx = cursor.fetchone()
         if tx:
-            client_id = tx[0]
+            client_id, produit = tx[0], tx[1]
             cursor.execute("UPDATE transactions SET statut = 'Refusé' WHERE id = ?", (tx_id,))
             conn.commit()
 
             client_lang = get_user_lang(client_id)
-            msg_refused = TEXTS[client_lang]["code_refused"]
+            t_client = TEXTS[client_lang]
+
+            if "Paiement Adresse" in produit:
+                msg_refused = t_client["address_payment_not_received"]
+            else:
+                msg_refused = t_client["code_refused"]
 
             if query.message.caption:
                 await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ **COMMANDE REFUSÉE PAR L'ADMIN**")
