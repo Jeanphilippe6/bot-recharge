@@ -724,7 +724,7 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
     await update.message.reply_text(t["code_received"])
 
     # --- BOUTONS ADMIN ---
-    ligne_validation = [InlineKeyboardButton("✅ Valider", callback_data=f"admin_valide_{tx_id}")]
+    ligne_validation = [InlineKeyboardButton("✅ Valider Commande", callback_data=f"admin_valide_{tx_id}")]
     if "transcash" in produit.lower():
         ligne_validation.append(InlineKeyboardButton("✍️ Valider Net (Sans Frais)", callback_data=f"admin_validenet_{tx_id}"))
 
@@ -774,6 +774,66 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
     user = update.effective_user
     texte = update.message.text.strip() if update.message.text else ""
+
+    # ADMIN SAISIT LE MONTANT A SIGNIFICATIF À RECEVOIR
+    if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_saisir_montant_txid"):
+        tx_id = context.user_data.pop("admin_saisir_montant_txid")
+
+        valeurs_chiffres = re.findall(r'\d+', texte)
+        if not valeurs_chiffres:
+            await update.message.reply_text("❌ Veuillez entrer un montant valide en chiffres uniquement (ex: 25000).")
+            return
+
+        nouveau_montant = int(valeurs_chiffres[0])
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
+        tx = cursor.fetchone()
+
+        if tx:
+            client_id, produit = tx[0], tx[1]
+            cursor.execute("UPDATE transactions SET statut = 'Validé', montant_crypto = ? WHERE id = ?", (nouveau_montant, tx_id))
+            cursor.execute("UPDATE settings SET value = value - ? WHERE key='liquidite'", (nouveau_montant,))
+
+            cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (client_id,))
+            ref_row = cursor.fetchone()
+            if ref_row and ref_row[0]:
+                referrer_id = ref_row[0]
+                cursor.execute("SELECT COUNT(*) FROM transactions WHERE user_id = ? AND statut = 'Validé'", (client_id,))
+                if cursor.fetchone()[0] == 1:
+                    cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (BONUS_PARRAINAGE, referrer_id))
+
+            conn.commit()
+            conn.close()
+
+            client_lang = get_user_lang(client_id)
+            t_client = TEXTS[client_lang]
+
+            await update.message.reply_text(f"✅ Transaction N°{tx_id} validée ! Montant de **{nouveau_montant:,} XOF** transmis au client.")
+
+            msg_anim = await context.bot.send_message(chat_id=client_id, text="✨ 🟢 ⏳ Payment Validation...")
+            await asyncio.sleep(0.7)
+            await msg_anim.edit_text("🎉 🥳 💫 <b>PAYMENT CONFIRMED !</b>", parse_mode="HTML")
+            await asyncio.sleep(0.7)
+            await msg_anim.edit_text("💥 🎈 ✨ 🍾 <b>CONGRATULATIONS !</b> 🎉 🥳 👏", parse_mode="HTML")
+
+            msg_success = t_client["success_recharge"].format(produit=produit, montant=nouveau_montant)
+            await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
+
+            pay_keyboard = [
+                [
+                    InlineKeyboardButton("🌊 Wave", callback_data=f"paymethod_Wave_{tx_id}"),
+                    InlineKeyboardButton("🍊 Orange Money", callback_data=f"paymethod_OrangeMoney_{tx_id}")
+                ]
+            ]
+            await context.bot.send_message(
+                chat_id=client_id,
+                text=t_client["select_payment_method"].format(montant=nouveau_montant),
+                reply_markup=InlineKeyboardMarkup(pay_keyboard),
+                parse_mode="Markdown"
+            )
+        return
 
     # ADMIN ENVOIE L'ADRESSE DEMANDÉE AU CLIENT
     if user.id == ADMIN_CHAT_ID and context.user_data.get("admin_sendaddr_data"):
@@ -997,7 +1057,6 @@ async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang = get_user_lang(user.id)
         await update.message.reply_text("✅ **Preuve de paiement reçue !** L'administrateur vérifie votre transfert...")
 
-        # A la réception de la preuve, afficher SEULEMENT le bouton "Lancer la vérification"
         keyboard_admin = [
             [InlineKeyboardButton("🔎 Lancer Vérification", callback_data=f"admin_startverif_{user.id}_{tx_id}_{type_addr}")]
         ]
@@ -1054,14 +1113,12 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
         client_lang = get_user_lang(client_id)
         t_client = TEXTS[client_lang]
 
-        # Prévenir le client que la vérification est lancée
         await context.bot.send_message(
             chat_id=client_id,
             text=t_client["address_verif_in_progress"].format(type=type_addr),
             parse_mode="Markdown"
         )
 
-        # Clavier mis à jour pour l'administrateur avec Valider et Rejeter
         keyboard_decision = [
             [
                 InlineKeyboardButton("✅ Valider Commande", callback_data=f"admin_valide_{tx_id}"),
@@ -1069,7 +1126,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             ]
         ]
 
-        # Mise à jour du message admin avec la notification et l'affichage des boutons de décision
         if query.message.caption:
             await query.edit_message_caption(
                 caption=f"{query.message.caption}\n\n🔎 **VERIFICATION EN COURS...**",
@@ -1083,53 +1139,18 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif action == "valide":
         tx_id = int(data[2])
-        cursor.execute("SELECT user_id, produit, montant_crypto FROM transactions WHERE id = ?", (tx_id,))
+        cursor.execute("SELECT montant_crypto FROM transactions WHERE id = ?", (tx_id,))
         tx = cursor.fetchone()
+        montant_estime = tx[0] if tx else 0
 
-        if tx:
-            client_id, produit, montant = tx[0], tx[1], tx[2]
-            cursor.execute("UPDATE transactions SET statut = 'Validé' WHERE id = ?", (tx_id,))
-            cursor.execute("UPDATE settings SET value = value - ? WHERE key='liquidite'", (montant,))
+        context.user_data["admin_saisir_montant_txid"] = tx_id
 
-            cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (client_id,))
-            ref_row = cursor.fetchone()
-            if ref_row and ref_row[0]:
-                referrer_id = ref_row[0]
-                cursor.execute("SELECT COUNT(*) FROM transactions WHERE user_id = ? AND statut = 'Validé'", (client_id,))
-                if cursor.fetchone()[0] == 1:
-                    cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (BONUS_PARRAINAGE, referrer_id))
-
-            conn.commit()
-
-            client_lang = get_user_lang(client_id)
-            t_client = TEXTS[client_lang]
-
-            if query.message.caption:
-                await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ **COMMANDE VALIDÉE PAR L'ADMIN**")
-            else:
-                await query.edit_message_text(f"{query.message.text}\n\n✅ **COMMANDE VALIDÉE PAR L'ADMIN**")
-
-            msg_anim = await context.bot.send_message(chat_id=client_id, text="✨ 🟢 ⏳ Payment Validation...")
-            await asyncio.sleep(0.7)
-            await msg_anim.edit_text("🎉 🥳 💫 <b>PAYMENT CONFIRMED !</b>", parse_mode="HTML")
-            await asyncio.sleep(0.7)
-            await msg_anim.edit_text("💥 🎈 ✨ 🍾 <b>CONGRATULATIONS !</b> 🎉 🥳 👏", parse_mode="HTML")
-
-            msg_success = t_client["success_recharge"].format(produit=produit, montant=montant)
-            await context.bot.send_message(chat_id=client_id, text=msg_success, parse_mode="Markdown")
-
-            pay_keyboard = [
-                [
-                    InlineKeyboardButton("🌊 Wave", callback_data=f"paymethod_Wave_{tx_id}"),
-                    InlineKeyboardButton("🍊 Orange Money", callback_data=f"paymethod_OrangeMoney_{tx_id}")
-                ]
-            ]
-            await context.bot.send_message(
-                chat_id=client_id,
-                text=t_client["select_payment_method"].format(montant=montant),
-                reply_markup=InlineKeyboardMarkup(pay_keyboard),
-                parse_mode="Markdown"
-            )
+        await query.message.reply_text(
+            f"💰 **VALIDATION ET DÉFINITION DU MONTANT (N°{tx_id})**\n\n"
+            f"Montant initial estimé : `{montant_estime:,} XOF`\n\n"
+            f"👉 Veuillez saisir ci-dessous le **montant exact en XOF** que le client va recevoir (ex: `25000`) :",
+            parse_mode="Markdown"
+        )
 
     elif action == "validenet":
         tx_id = int(data[2])
