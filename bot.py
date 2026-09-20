@@ -30,7 +30,10 @@ class DummyHandler(BaseHTTPRequestHandler):
 
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
-    HTTPServer(("0.0.0.0", port), DummyHandler).serve_forever()
+    try:
+        HTTPServer(("0.0.0.0", port), DummyHandler).serve_forever()
+    except Exception as e:
+        logging.error(f"Erreur serveur dummy HTTP: {e}")
 
 # ---------------------------------------------------------
 # BASE DE DONNÉES SQLITE
@@ -38,48 +41,46 @@ def run_dummy_server():
 DB_FILE = "bot_data.db"
 
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            full_name TEXT,
-            username TEXT,
-            balance INTEGER DEFAULT 0,
-            lang TEXT DEFAULT 'fr',
-            referrer_id INTEGER
-        )
-    """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                full_name TEXT,
+                username TEXT,
+                balance INTEGER DEFAULT 0,
+                lang TEXT DEFAULT 'fr',
+                referrer_id INTEGER
+            )
+        """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            produit TEXT,
-            devise TEXT,
-            montant_eur INTEGER,
-            montant_crypto INTEGER,
-            code TEXT,
-            statut TEXT,
-            date_creation TEXT,
-            rating INTEGER DEFAULT 0,
-            methode_paiement TEXT,
-            numero_paiement TEXT
-        )
-    """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                produit TEXT,
+                devise TEXT,
+                montant_eur INTEGER,
+                montant_crypto INTEGER,
+                code TEXT,
+                statut TEXT,
+                date_creation TEXT,
+                rating INTEGER DEFAULT 0,
+                methode_paiement TEXT,
+                numero_paiement TEXT
+            )
+        """)
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-    """)
-    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('liquidite', '50000000')")
-    cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('maintenance', '0')")
-
-    conn.commit()
-    conn.close()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('liquidite', '50000000')")
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('maintenance', '0')")
+        conn.commit()
 
 def get_db():
     return sqlite3.connect(DB_FILE)
@@ -102,8 +103,8 @@ def est_ouvert():
     except Exception:
         maintenant = datetime.utcnow().time()
 
-    debut = datetime.strptime("07:30", "%H:%M").time()
-    fin = datetime.strptime("20:30", "%H:%M").time()
+    debut = datetime.strptime("06:00", "%H:%M").time()
+    fin = datetime.strptime("22:30", "%H:%M").time()
     return debut <= maintenant <= fin
 
 async def verifier_horaires_et_bloquer(update: Update) -> bool:
@@ -123,9 +124,15 @@ async def verifier_horaires_et_bloquer(update: Update) -> bool:
                 await update.callback_query.answer()
             except Exception:
                 pass
-            await update.callback_query.message.reply_text(msg_ferme, parse_mode="Markdown")
+            try:
+                await update.callback_query.message.reply_text(msg_ferme, parse_mode="Markdown")
+            except Exception:
+                pass
         elif update.message:
-            await update.message.reply_text(msg_ferme, parse_mode="Markdown")
+            try:
+                await update.message.reply_text(msg_ferme, parse_mode="Markdown")
+            except Exception:
+                pass
 
         return True
 
@@ -176,7 +183,7 @@ TEXTS = {
         "liquidite_insuffisante": "⚠️ **TRANSACTION IMPOSSIBLE** ⚠️\n\nLa liquidité disponible actuellement ({liq:,} XOF) est insuffisante pour traiter cette transaction. Veuillez réessayer plus tard.",
         "qty_invalid": "❌ **Saisie invalide.** Veuillez taper un nombre entier.",
         "session_expired": "⏱ **SESSION EXPIRÉE !** ⚠️\n\nLe délai de 10 minutes est écoulé. La session a été fermée.\n\nVeuillez relancer une nouvelle demande dans le menu.",
-        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **07h30 à 20h30** (Heure GMT).\n\nMerci de revenir pendant les heures de service !",
+        "closed_message": "🔴 **SERVICE FERMÉ** 🔴\n\nNos services sont actuellement fermés.\n\n⏰ **Horaires d'ouverture :**\nDu **Lundi au Dimanche** de **06h00 à 22h30** (Heure GMT).\n\nMerci de revenir pendant les heures de service !",
         "address_select_type": "📍 **PAIEMENT PAR ADRESSE**\n\nVeuillez sélectionner le type d'adresse souhaité :",
         "address_requested": "⏳ **DEMANDE D'ADRESSE TRANSMISE**\n\nVotre demande d'adresse **{type}** a été transmise à l'administrateur.\n\nVous recevrez l'adresse sous peu dans ce tchat. Une fois votre transfert effectué, **renvoyez la capture d'écran** de la preuve de paiement ici.",
         "address_verif_in_progress": "🔎 **VÉRIFICATION EN COURS**\n\nL'administrateur procède à la vérification de votre paiement sur l'adresse **{type}**. Veuillez patienter...",
@@ -226,7 +233,7 @@ TEXTS = {
         "liquidite_insuffisante": "⚠️ **TRANSACTION NOT POSSIBLE** ⚠️\n\nThe current available liquidity ({liq:,} XOF) is insufficient. Please try again later.",
         "qty_invalid": "❌ **Invalid input.** Please type a valid number.",
         "session_expired": "⏱ **SESSION EXPIRED!** ⚠️\n\n10 minutes have passed without activity. Your session has been closed.\n\nPlease start a new request from the main menu.",
-        "closed_message": "🔴 **SERVICE CLOSED** 🔴\n\nOur services are currently closed.\n\n⏰ **Opening Hours:**\nMonday to Sunday from **07:30 to 20:30** (GMT).\n\nThank you for coming back during service hours!",
+        "closed_message": "🔴 **SERVICE CLOSED** 🔴\n\nOur services are currently closed.\n\n⏰ **Opening Hours:**\nMonday to Sunday from **06:00 to 22:30** (GMT).\n\nThank you for coming back during service hours!",
         "address_select_type": "📍 **PAYMENT BY ADDRESS**\n\nPlease select the desired address type:",
         "address_requested": "⏳ **ADDRESS REQUEST SENT**\n\nYour request for a **{type}** address has been sent to the admin.\n\nYou will receive the address shortly in this chat. Once your transfer is done, **send back the screenshot** of the payment proof here.",
         "address_verif_in_progress": "🔎 **VERIFICATION IN PROGRESS**\n\nThe administrator is verifying your payment on the **{type}** address. Please wait...",
@@ -267,15 +274,18 @@ SYMBOLES_DEVISE = {
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 def get_user_lang(user_id):
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT lang FROM users WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return row[0] if row else "fr"
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT lang FROM users WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+            return row[0] if row and row[0] in TEXTS else "fr"
+    except Exception as e:
+        logging.error(f"Erreur get_user_lang: {e}")
+        return "fr"
 
 def client_keyboard(lang):
-    t = TEXTS[lang]
+    t = TEXTS.get(lang, TEXTS["fr"])
     whatsapp_url = f"https://wa.me/{NUMERO_WHATSAPP}"
     keyboard = [
         [InlineKeyboardButton(t["pcs"], callback_data="prod_PCS"), InlineKeyboardButton(t["transcash"], callback_data="prod_Transcash")],
@@ -305,8 +315,11 @@ def afficher_tarifs_produit(produit, info_complement=""):
     return texte, InlineKeyboardMarkup(keyboard)
 
 async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int, text_template: str, kwargs: dict):
-    if "timer_task" in context.user_data and context.user_data["timer_task"]:
-        context.user_data["timer_task"].cancel()
+    if context.user_data.get("timer_task"):
+        try:
+            context.user_data["timer_task"].cancel()
+        except Exception:
+            pass
 
     async def _timer():
         time_left = TIMEOUT_SESSION
@@ -344,18 +357,20 @@ async def demarrer_compte_a_rebours(context: ContextTypes.DEFAULT_TYPE, chat_id:
 
     context.user_data["timer_task"] = asyncio.create_task(_timer())
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logging.error("Exception interceptée pendant le traitement de la requête :", exc_info=context.error)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not user:
         return
 
-    # Annulation des compteurs et nettoyage de session
-    if "timer_task" in context.user_data and context.user_data["timer_task"]:
-        context.user_data["timer_task"].cancel()
+    if context.user_data.get("timer_task"):
+        try:
+            context.user_data["timer_task"].cancel()
+        except Exception:
+            pass
     context.user_data.clear()
-
-    conn = get_db()
-    cursor = conn.cursor()
 
     referrer_id = None
     if context.args and context.args[0].isdigit():
@@ -363,25 +378,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if ref_candidate != user.id:
             referrer_id = ref_candidate
 
-    cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user.id,))
-    if not cursor.fetchone():
-        cursor.execute(
-            "INSERT INTO users (user_id, full_name, username, referrer_id) VALUES (?, ?, ?, ?)",
-            (user.id, user.full_name, user.username or "", referrer_id)
-        )
-        conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user.id,))
+        if not cursor.fetchone():
+            cursor.execute(
+                "INSERT INTO users (user_id, full_name, username, referrer_id) VALUES (?, ?, ?, ?)",
+                (user.id, user.full_name or "", user.username or "", referrer_id)
+            )
+            conn.commit()
 
     lang = get_user_lang(user.id)
 
-    # Vérification des horaires pour les clients
     if user.id != ADMIN_CHAT_ID and not est_ouvert():
         msg_ferme = TEXTS[lang]["closed_message"]
         await update.message.reply_text(msg_ferme, parse_mode="Markdown")
         return
 
     await update.message.reply_text(
-        TEXTS[lang]["welcome"].format(name=html.escape(user.first_name)),
+        TEXTS[lang]["welcome"].format(name=html.escape(user.first_name or "Client")),
         reply_markup=client_keyboard(lang)
     )
 
@@ -390,11 +405,10 @@ async def admin_set_liquidite(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
     try:
         montant = int(context.args[0])
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE settings SET value = ? WHERE key='liquidite'", (str(montant),))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE settings SET value = ? WHERE key='liquidite'", (str(montant),))
+            conn.commit()
         await update.message.reply_text(f"💧 **Liquidité mise à jour :** {montant:,} XOF", parse_mode="Markdown")
     except Exception:
         await update.message.reply_text("Usage: `/liquidite 50000000`", parse_mode="Markdown")
@@ -415,12 +429,12 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_user_lang(user.id)
     t = TEXTS[lang]
 
-    conn = get_db()
-    cursor = conn.cursor()
-
     if data == "menu_main":
-        if "timer_task" in context.user_data and context.user_data["timer_task"]:
-            context.user_data["timer_task"].cancel()
+        if context.user_data.get("timer_task"):
+            try:
+                context.user_data["timer_task"].cancel()
+            except Exception:
+                pass
         context.user_data["etape"] = None
         await query.edit_message_text("Menu :", reply_markup=client_keyboard(lang))
 
@@ -433,15 +447,19 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("setlang_"):
         new_lang = data.split("_")[1]
-        cursor.execute("UPDATE users SET lang = ? WHERE user_id = ?", (new_lang, user.id))
-        conn.commit()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET lang = ? WHERE user_id = ?", (new_lang, user.id))
+            conn.commit()
         await query.edit_message_text(TEXTS[new_lang]["lang_updated"], reply_markup=client_keyboard(new_lang))
 
     elif data == "menu_solde":
-        cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user.id,))
-        solde = cursor.fetchone()[0]
-        cursor.execute("SELECT value FROM settings WHERE key='liquidite'")
-        liquidite = int(cursor.fetchone()[0])
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user.id,))
+            solde = cursor.fetchone()[0]
+            cursor.execute("SELECT value FROM settings WHERE key='liquidite'")
+            liquidite = int(cursor.fetchone()[0])
 
         txt = (
             f"💼 <b>PORTEFEUILLE / WALLET</b>\n\n"
@@ -455,8 +473,10 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(txt, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
     elif data == "action_retrait":
-        cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user.id,))
-        solde = cursor.fetchone()[0]
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user.id,))
+            solde = cursor.fetchone()[0]
 
         if solde < SEUIL_MIN_RETRAIT:
             keyboard = [[InlineKeyboardButton(t["back"], callback_data="menu_solde")]]
@@ -470,8 +490,10 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(t["retrait_demande"].format(solde=solde), parse_mode="Markdown")
 
     elif data == "menu_parrainage":
-        cursor.execute("SELECT COUNT(*) FROM users WHERE referrer_id = ?", (user.id,))
-        nb_filleuls = cursor.fetchone()[0]
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM users WHERE referrer_id = ?", (user.id,))
+            nb_filleuls = cursor.fetchone()[0]
         bot_info = await context.bot.get_me()
         link = f"https://t.me/{bot_info.username}?start={user.id}"
 
@@ -483,8 +505,10 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data == "menu_history":
-        cursor.execute("SELECT produit, montant_eur, montant_crypto, statut, date_creation, rating FROM transactions WHERE user_id = ? ORDER BY id DESC", (user.id,))
-        rows = cursor.fetchall()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT produit, montant_eur, montant_crypto, statut, date_creation, rating FROM transactions WHERE user_id = ? ORDER BY id DESC", (user.id,))
+            rows = cursor.fetchall()
 
         if not rows:
             txt = t["no_tx"]
@@ -511,12 +535,14 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         type_addr = data.split("_")[1]
         now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-        cursor.execute(
-            "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (user.id, f"Paiement Adresse ({type_addr})", "XOF", 0, 0, "[EN ATTENTE D'ADRESSE]", "Demande d'adresse", now_str)
-        )
-        tx_id = cursor.lastrowid
-        conn.commit()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (user.id, f"Paiement Adresse ({type_addr})", "XOF", 0, 0, "[EN ATTENTE D'ADRESSE]", "Demande d'adresse", now_str)
+            )
+            tx_id = cursor.lastrowid
+            conn.commit()
 
         context.user_data["etape"] = "ATTENTE_CAPTURE_ADRESSE"
         context.user_data["tx_id_adresse"] = tx_id
@@ -531,7 +557,7 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=ADMIN_CHAT_ID,
             text=(
                 f"📍 <b>DEMANDE D'ADRESSE ({type_addr}) N°{tx_id}</b>\n\n"
-                f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
+                f"👤 <b>Client :</b> {html.escape(user.full_name or '')} (@{html.escape(user.username or 'aucun')})\n"
                 f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
                 f"🌐 <b>Langue :</b> {lang.upper()}\n"
                 f"⏰ <b>Date :</b> {now_str}"
@@ -651,7 +677,7 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["montant_crypto_unitaire"] = montant_crypto_unitaire
         context.user_data["etape"] = "ATTENTE_QUANTITE"
 
-        produit = context.user_data.get("produit")
+        produit = context.user_data.get("produit", "")
         pays = context.user_data.get("pays_paysafecard")
         symbole = SYMBOLES_DEVISE.get(produit, "€")
         
@@ -682,12 +708,12 @@ async def gerer_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tx_id = int(parts[1])
         stars = int(parts[2])
 
-        cursor.execute("UPDATE transactions SET rating = ? WHERE id = ?", (stars, tx_id))
-        conn.commit()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE transactions SET rating = ? WHERE id = ?", (stars, tx_id))
+            conn.commit()
 
         await query.edit_message_text(t["thanks_rate"].format(stars=stars), parse_mode="Markdown")
-
-    conn.close()
 
 # ---------------------------------------------------------
 # TRAITEMENT DES MESSAGES ET TRANSACTIONS
@@ -698,10 +724,13 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
     lang = get_user_lang(user.id)
     t = TEXTS[lang]
 
-    if "timer_task" in context.user_data and context.user_data["timer_task"]:
-        context.user_data["timer_task"].cancel()
+    if context.user_data.get("timer_task"):
+        try:
+            context.user_data["timer_task"].cancel()
+        except Exception:
+            pass
 
-    produit = context.user_data.get("produit")
+    produit = context.user_data.get("produit", "")
     pays = context.user_data.get("pays_paysafecard")
     produit_complet = f"{produit} [{pays}]" if pays else produit
 
@@ -722,26 +751,25 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
         quantite = context.user_data.get("quantite", 1)
 
     context.user_data["etape"] = None
-    conn = get_db()
-    cursor = conn.cursor()
 
-    if tx_id_origine:
-        cursor.execute("SELECT code FROM transactions WHERE id = ?", (tx_id_origine,))
-        ancien_code = cursor.fetchone()[0]
-        nouveau_code = f"{ancien_code}\n--- COMPLÉMENT DU {now_str} ---\n{contenu_code}"
-        cursor.execute("UPDATE transactions SET code = ?, statut = 'En attente' WHERE id = ?", (nouveau_code, tx_id_origine))
-        tx_id = tx_id_origine
-        context.user_data["tx_id_completer"] = None
-    else:
-        nom_tx = f"{produit_complet} (Multiples x{quantite})" if etape == "ATTENTE_CODE_MIXTE" else f"{produit_complet} (x{quantite})"
-        cursor.execute(
-            "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (user.id, nom_tx, "XOF", montant_eur, montant_crypto, contenu_code, "En attente", now_str)
-        )
-        tx_id = cursor.lastrowid
-
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_FILE) as conn:
+        cursor = conn.cursor()
+        if tx_id_origine:
+            cursor.execute("SELECT code FROM transactions WHERE id = ?", (tx_id_origine,))
+            row = cursor.fetchone()
+            ancien_code = row[0] if row else ""
+            nouveau_code = f"{ancien_code}\n--- COMPLÉMENT DU {now_str} ---\n{contenu_code}"
+            cursor.execute("UPDATE transactions SET code = ?, statut = 'En attente' WHERE id = ?", (nouveau_code, tx_id_origine))
+            tx_id = tx_id_origine
+            context.user_data["tx_id_completer"] = None
+        else:
+            nom_tx = f"{produit_complet} (Multiples x{quantite})" if etape == "ATTENTE_CODE_MIXTE" else f"{produit_complet} (x{quantite})"
+            cursor.execute(
+                "INSERT INTO transactions (user_id, produit, devise, montant_eur, montant_crypto, code, statut, date_creation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (user.id, nom_tx, "XOF", montant_eur, montant_crypto, contenu_code, "En attente", now_str)
+            )
+            tx_id = cursor.lastrowid
+        conn.commit()
 
     await update.message.reply_text(t["code_received"])
 
@@ -765,7 +793,7 @@ async def enregistrer_et_envoyer_transaction(update: Update, context: ContextTyp
     symbole = SYMBOLES_DEVISE.get(produit, "€")
     message_admin = (
         f"📥 <b>TRANSACTION N°{tx_id}</b> ({now_str})\n\n"
-        f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
+        f"👤 <b>Client :</b> {html.escape(user.full_name or '')} (@{html.escape(user.username or 'aucun')})\n"
         f"🌐 <b>Langue client :</b> {lang.upper()}\n"
         f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
         f"🏷 <b>Produit :</b> {html.escape(produit_complet or 'PCS')} (x{quantite})\n"
@@ -808,27 +836,26 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
         nouveau_montant = int(valeurs_chiffres[0])
 
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
-        tx = cursor.fetchone()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
+            tx = cursor.fetchone()
+
+            if tx:
+                client_id, produit = tx[0], tx[1]
+                cursor.execute("UPDATE transactions SET statut = 'Validé', montant_crypto = ? WHERE id = ?", (nouveau_montant, tx_id))
+                cursor.execute("UPDATE settings SET value = value - ? WHERE key='liquidite'", (nouveau_montant,))
+
+                cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (client_id,))
+                ref_row = cursor.fetchone()
+                if ref_row and ref_row[0]:
+                    referrer_id = ref_row[0]
+                    cursor.execute("SELECT COUNT(*) FROM transactions WHERE user_id = ? AND statut = 'Validé'", (client_id,))
+                    if cursor.fetchone()[0] == 1:
+                        cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (BONUS_PARRAINAGE, referrer_id))
+                conn.commit()
 
         if tx:
-            client_id, produit = tx[0], tx[1]
-            cursor.execute("UPDATE transactions SET statut = 'Validé', montant_crypto = ? WHERE id = ?", (nouveau_montant, tx_id))
-            cursor.execute("UPDATE settings SET value = value - ? WHERE key='liquidite'", (nouveau_montant,))
-
-            cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (client_id,))
-            ref_row = cursor.fetchone()
-            if ref_row and ref_row[0]:
-                referrer_id = ref_row[0]
-                cursor.execute("SELECT COUNT(*) FROM transactions WHERE user_id = ? AND statut = 'Validé'", (client_id,))
-                if cursor.fetchone()[0] == 1:
-                    cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (BONUS_PARRAINAGE, referrer_id))
-
-            conn.commit()
-            conn.close()
-
             client_lang = get_user_lang(client_id)
             t_client = TEXTS[client_lang]
 
@@ -866,11 +893,10 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         data_addr = context.user_data.pop("admin_sendaddr_data")
         client_id, tx_id, type_addr = data_addr["client_id"], data_addr["tx_id"], data_addr["type_addr"]
 
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE transactions SET code = ? WHERE id = ?", (f"Adresse {type_addr} envoyée: {texte}", tx_id))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE transactions SET code = ? WHERE id = ?", (f"Adresse {type_addr} envoyée: {texte}", tx_id))
+            conn.commit()
 
         await context.bot.send_message(
             chat_id=client_id,
@@ -888,27 +914,26 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             return
 
         nouveau_montant = int(texte)
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
-        tx = cursor.fetchone()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
+            tx = cursor.fetchone()
+
+            if tx:
+                client_id, produit = tx[0], tx[1]
+                cursor.execute("UPDATE transactions SET statut = 'Validé', montant_crypto = ? WHERE id = ?", (nouveau_montant, tx_id))
+                cursor.execute("UPDATE settings SET value = value - ? WHERE key='liquidite'", (nouveau_montant,))
+
+                cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (client_id,))
+                ref_row = cursor.fetchone()
+                if ref_row and ref_row[0]:
+                    referrer_id = ref_row[0]
+                    cursor.execute("SELECT COUNT(*) FROM transactions WHERE user_id = ? AND statut = 'Validé'", (client_id,))
+                    if cursor.fetchone()[0] == 1:
+                        cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (BONUS_PARRAINAGE, referrer_id))
+                conn.commit()
 
         if tx:
-            client_id, produit = tx[0], tx[1]
-            cursor.execute("UPDATE transactions SET statut = 'Validé', montant_crypto = ? WHERE id = ?", (nouveau_montant, tx_id))
-            cursor.execute("UPDATE settings SET value = value - ? WHERE key='liquidite'", (nouveau_montant,))
-
-            cursor.execute("SELECT referrer_id FROM users WHERE user_id = ?", (client_id,))
-            ref_row = cursor.fetchone()
-            if ref_row and ref_row[0]:
-                referrer_id = ref_row[0]
-                cursor.execute("SELECT COUNT(*) FROM transactions WHERE user_id = ? AND statut = 'Validé'", (client_id,))
-                if cursor.fetchone()[0] == 1:
-                    cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (BONUS_PARRAINAGE, referrer_id))
-
-            conn.commit()
-            conn.close()
-
             client_lang = get_user_lang(client_id)
             t_client = TEXTS[client_lang]
 
@@ -961,8 +986,8 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             return
 
         quantite = int(texte)
-        montant_unitaire = context.user_data.get("montant_eur")
-        montant_crypto_unitaire = context.user_data.get("montant_crypto_unitaire")
+        montant_unitaire = context.user_data.get("montant_eur", 0)
+        montant_crypto_unitaire = context.user_data.get("montant_crypto_unitaire", 0)
 
         montant_total = montant_unitaire * quantite
         montant_crypto_total = montant_crypto_unitaire * quantite
@@ -972,7 +997,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data["montant_crypto"] = montant_crypto_total
         context.user_data["etape"] = "ATTENTE_CODE"
 
-        produit = context.user_data.get("produit")
+        produit = context.user_data.get("produit", "")
         pays = context.user_data.get("pays_paysafecard")
         nom_produit_affiche = f"{produit} [{pays}]" if pays else produit
 
@@ -993,14 +1018,13 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
         methode = context.user_data.get("methode_paiement", "Wave / Orange Money")
         tx_id = context.user_data.get("tx_id_paiement")
 
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE transactions SET methode_paiement = ?, numero_paiement = ? WHERE id = ?", (methode, texte, tx_id))
-        cursor.execute("SELECT montant_crypto FROM transactions WHERE id = ?", (tx_id,))
-        row = cursor.fetchone()
-        montant_crypto = row[0] if row else 0
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE transactions SET methode_paiement = ?, numero_paiement = ? WHERE id = ?", (methode, texte, tx_id))
+            cursor.execute("SELECT montant_crypto FROM transactions WHERE id = ?", (tx_id,))
+            row = cursor.fetchone()
+            montant_crypto = row[0] if row else 0
+            conn.commit()
 
         await update.message.reply_text(t["phone_received"])
 
@@ -1013,7 +1037,7 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
             text=(
                 f"📱 <b>NUMÉRO DE PAIEMENT REÇU !</b>\n\n"
                 f"🆔 <b>Transaction N° :</b> {tx_id}\n"
-                f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
+                f"👤 <b>Client :</b> {html.escape(user.full_name or '')} (@{html.escape(user.username or 'aucun')})\n"
                 f"💳 <b>Méthode :</b> {methode}\n"
                 f"📞 <b>Numéro client :</b> <code>{html.escape(texte)}</code>\n"
                 f"💰 <b>Montant à envoyer :</b> <code>{montant_crypto:,} XOF</code>"
@@ -1024,18 +1048,17 @@ async def gerer_messages_texte(update: Update, context: ContextTypes.DEFAULT_TYP
 
     elif etape == "ATTENTE_RETRAIT":
         context.user_data["etape"] = None
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user.id,))
-        solde = cursor.fetchone()[0]
-        conn.close()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user.id,))
+            solde = cursor.fetchone()[0]
 
         await update.message.reply_text("Votre demande de retrait a été transmise à l'administrateur.")
         await context.bot.send_message(
             chat_id=ADMIN_CHAT_ID,
             text=(
                 f"💸 <b>DEMANDE DE RETRAIT</b>\n\n"
-                f"👤 <b>Client :</b> {html.escape(user.full_name)}\n"
+                f"👤 <b>Client :</b> {html.escape(user.full_name or '')}\n"
                 f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
                 f"💰 <b>Montant :</b> {solde:,} XOF\n"
                 f"📞 <b>Compte Réception :</b> <code>{html.escape(texte)}</code>"
@@ -1068,19 +1091,16 @@ async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     etape = context.user_data.get("etape")
 
-    # PREUVE CAPTURE DE PAIEMENT PAR ADRESSE ENVOYÉE PAR LE CLIENT
     if etape == "ATTENTE_CAPTURE_ADRESSE":
         tx_id = context.user_data.get("tx_id_adresse")
         type_addr = context.user_data.get("type_adresse", "Adresse")
         context.user_data["etape"] = None
 
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE transactions SET statut = 'Preuve reçue', code = 'Capture reçue' WHERE id = ?", (tx_id,))
-        conn.commit()
-        conn.close()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE transactions SET statut = 'Preuve reçue', code = 'Capture reçue' WHERE id = ?", (tx_id,))
+            conn.commit()
 
-        lang = get_user_lang(user.id)
         await update.message.reply_text("✅ **Preuve de paiement reçue !** L'administrateur vérifie votre transfert...")
 
         keyboard_admin = [
@@ -1092,7 +1112,7 @@ async def gerer_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo=photo.file_id,
             caption=(
                 f"🖼️ <b>PREUVE DE PAIEMENT REÇUE ({type_addr.upper()}) N°{tx_id}</b>\n\n"
-                f"👤 <b>Client :</b> {html.escape(user.full_name)} (@{html.escape(user.username or 'aucun')})\n"
+                f"👤 <b>Client :</b> {html.escape(user.full_name or '')} (@{html.escape(user.username or 'aucun')})\n"
                 f"🆔 <b>ID Client :</b> <code>{user.id}</code>\n"
                 f"💬 <b>Note/Légende :</b> {html.escape(caption or 'Aucune')}"
             ),
@@ -1112,9 +1132,6 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
     data = query.data.split("_")
     action = data[1]
-
-    conn = get_db()
-    cursor = conn.cursor()
 
     if action == "sendaddr":
         client_id = int(data[2])
@@ -1165,9 +1182,11 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif action == "valide":
         tx_id = int(data[2])
-        cursor.execute("SELECT montant_crypto FROM transactions WHERE id = ?", (tx_id,))
-        tx = cursor.fetchone()
-        montant_estime = tx[0] if tx else 0
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT montant_crypto FROM transactions WHERE id = ?", (tx_id,))
+            tx = cursor.fetchone()
+            montant_estime = tx[0] if tx else 0
 
         context.user_data["admin_saisir_montant_txid"] = tx_id
 
@@ -1188,8 +1207,10 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif action == "payconfirm":
         tx_id = int(data[2])
-        cursor.execute("SELECT user_id, montant_crypto, methode_paiement, numero_paiement FROM transactions WHERE id = ?", (tx_id,))
-        tx = cursor.fetchone()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id, montant_crypto, methode_paiement, numero_paiement FROM transactions WHERE id = ?", (tx_id,))
+            tx = cursor.fetchone()
 
         if tx:
             client_id, montant, methode, numero = tx[0], tx[1], tx[2], tx[3]
@@ -1217,8 +1238,10 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif action == "payunreachable":
         tx_id = int(data[2])
-        cursor.execute("SELECT user_id, methode_paiement, numero_paiement FROM transactions WHERE id = ?", (tx_id,))
-        tx = cursor.fetchone()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id, methode_paiement, numero_paiement FROM transactions WHERE id = ?", (tx_id,))
+            tx = cursor.fetchone()
 
         if tx:
             client_id, methode, numero = tx[0], tx[1], tx[2]
@@ -1243,13 +1266,16 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif action == "invalide":
         tx_id = int(data[2])
-        cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
-        tx = cursor.fetchone()
-        if tx:
-            client_id, produit = tx[0], tx[1]
-            cursor.execute("UPDATE transactions SET statut = 'Refusé' WHERE id = ?", (tx_id,))
-            conn.commit()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
+            tx = cursor.fetchone()
+            if tx:
+                client_id, produit = tx[0], tx[1]
+                cursor.execute("UPDATE transactions SET statut = 'Refusé' WHERE id = ?", (tx_id,))
+                conn.commit()
 
+        if tx:
             client_lang = get_user_lang(client_id)
             t_client = TEXTS[client_lang]
 
@@ -1267,8 +1293,11 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     elif action == "completer":
         tx_id = int(data[2])
-        cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
-        tx = cursor.fetchone()
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id, produit FROM transactions WHERE id = ?", (tx_id,))
+            tx = cursor.fetchone()
+
         if tx:
             client_id, produit = tx[0], tx[1]
             client_lang = get_user_lang(client_id)
@@ -1311,14 +1340,14 @@ async def gerer_actions_admin(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode="Markdown"
         )
 
-    conn.close()
-
 # ---------------------------------------------------------
 # LANCEMENT DU BOT
 # ---------------------------------------------------------
 def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
+
+    app.add_error_handler(error_handler)
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("liquidite", admin_set_liquidite))
