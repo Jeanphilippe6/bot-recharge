@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import html
 import logging
@@ -101,7 +101,7 @@ def est_ouvert():
         tz = zoneinfo.ZoneInfo("Africa/Abidjan")
         maintenant = datetime.now(tz).time()
     except Exception:
-        maintenant = datetime.utcnow().time()
+        maintenant = datetime.now(timezone.utc).time()
 
     debut = datetime.strptime("06:00", "%H:%M").time()
     fin = datetime.strptime("22:30", "%H:%M").time()
@@ -390,15 +390,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     lang = get_user_lang(user.id)
 
-    if user.id != ADMIN_CHAT_ID and not est_ouvert():
-        msg_ferme = TEXTS[lang]["closed_message"]
-        await update.message.reply_text(msg_ferme, parse_mode="Markdown")
-        return
-
+    # Affiche le menu dans tous les cas pour ne pas bloquer l'interface du bot
     await update.message.reply_text(
         TEXTS[lang]["welcome"].format(name=html.escape(user.first_name or "Client")),
         reply_markup=client_keyboard(lang)
     )
+
+    # Message d'information si le bot est hors horaire
+    if user.id != ADMIN_CHAT_ID and not est_ouvert():
+        msg_ferme = TEXTS[lang]["closed_message"]
+        await update.message.reply_text(msg_ferme, parse_mode="Markdown")
 
 async def admin_set_liquidite(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_CHAT_ID:
